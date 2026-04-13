@@ -38,6 +38,7 @@ import com.example.skales.viewmodel.ScaleListViewModel
 fun ScaleListScreen(
     viewModel: ScaleListViewModel,
     onCreateScale: () -> Unit,
+    onOpenScale: (String) -> Unit,
     onEditScale: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,7 +72,8 @@ fun ScaleListScreen(
                 items(items = uiState.scales, key = { it.id }) { scale ->
                     ScaleListItem(
                         scale = scale,
-                        onClick = { onEditScale(scale.id) },
+                        onClick = { onOpenScale(scale.id) },
+                        onEdit = { onEditScale(scale.id) },
                         onDelete = { scalePendingDelete = scale.id },
                     )
                 }
@@ -135,6 +137,7 @@ private fun EmptyState(
 private fun ScaleListItem(
     scale: Scale,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val previewNotes = scale.sets
@@ -162,6 +165,9 @@ private fun ScaleListItem(
                 text = if (previewNotes.isBlank()) "No sounds" else previewNotes,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            TextButton(onClick = onEdit, modifier = Modifier.align(Alignment.End)) {
+                Text("Edit")
+            }
             TextButton(onClick = onDelete, modifier = Modifier.align(Alignment.End)) {
                 Text("Delete")
             }

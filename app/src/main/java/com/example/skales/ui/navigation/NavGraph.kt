@@ -14,12 +14,15 @@ import com.example.skales.audio.ScaleStepper
 import com.example.skales.data.repository.ScaleRepository
 import com.example.skales.ui.screens.ScaleEditorScreen
 import com.example.skales.ui.screens.ScaleListScreen
+import com.example.skales.ui.screens.ScalePlayerScreen
 import com.example.skales.viewmodel.ScaleEditorViewModel
 import com.example.skales.viewmodel.ScaleListViewModel
+import com.example.skales.viewmodel.ScalePlayerViewModel
 
 object Routes {
     const val scaleList = "scales"
     const val scaleEditor = "editor"
+    const val scalePlayer = "player"
     const val scaleIdArg = "scaleId"
 
     fun editorRoute(scaleId: String?): String {
@@ -29,6 +32,8 @@ object Routes {
             "$scaleEditor?$scaleIdArg=$scaleId"
         }
     }
+
+    fun playerRoute(scaleId: String): String = "$scalePlayer/$scaleId"
 }
 
 @Composable
@@ -53,7 +58,33 @@ fun SkalesNavGraph(
             ScaleListScreen(
                 viewModel = viewModel,
                 onCreateScale = { navController.navigate(Routes.editorRoute(null)) },
+                onOpenScale = { scaleId -> navController.navigate(Routes.playerRoute(scaleId)) },
                 onEditScale = { scaleId -> navController.navigate(Routes.editorRoute(scaleId)) },
+            )
+        }
+
+        composable(
+            route = "${Routes.scalePlayer}/{${Routes.scaleIdArg}}",
+            arguments = listOf(
+                navArgument(Routes.scaleIdArg) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val scaleId = backStackEntry.arguments?.getString(Routes.scaleIdArg).orEmpty()
+            val viewModel: ScalePlayerViewModel = viewModel(
+                factory = ScalePlayerViewModel.factory(
+                    scaleRepository = scaleRepository,
+                    pianoSoundPlayer = pianoSoundPlayer,
+                    scaleStepper = scaleStepper,
+                    scaleAutoPlayer = scaleAutoPlayer,
+                    scaleId = scaleId,
+                ),
+            )
+            ScalePlayerScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onEditScale = { editScaleId -> navController.navigate(Routes.editorRoute(editScaleId)) },
             )
         }
 

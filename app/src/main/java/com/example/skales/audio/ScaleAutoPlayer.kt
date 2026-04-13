@@ -10,16 +10,17 @@ class ScaleAutoPlayer(
         scale: Scale,
         initialCursor: PlaybackCursor,
         bpmProvider: () -> Int,
+        directionProvider: () -> PlaybackDirection,
         updateCursor: (PlaybackCursor) -> Unit,
     ) {
-        var cursor = initialCursor.normalizedFor(scale)
+        var cursor = initialCursor.normalizedFor(scale, directionProvider())
         if (cursor.isFinished) {
-            cursor = PlaybackCursor()
+            cursor = PlaybackCursor().normalizedFor(scale, directionProvider())
             updateCursor(cursor)
         }
 
         while (!cursor.isFinished) {
-            val step = scaleStepper.next(scale, cursor)
+            val step = scaleStepper.next(scale, cursor, directionProvider())
             cursor = step.nextCursor
             updateCursor(cursor)
 

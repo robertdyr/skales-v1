@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.skales.audio.PianoSoundPlayer
 import com.example.skales.audio.PlaybackCursor
+import com.example.skales.audio.PlaybackDirection
 import com.example.skales.audio.ScaleAutoPlayer
 import com.example.skales.audio.ScaleStepper
 import com.example.skales.audio.normalizedFor
@@ -190,8 +191,8 @@ class ScaleEditorViewModel(
         val scale = currentPlayableScale() ?: return
 
         viewModelScope.launch {
-            val currentCursor = uiState.value.playbackCursor.normalizedFor(scale)
-            val step = scaleStepper.next(scale, currentCursor)
+            val currentCursor = uiState.value.playbackCursor.normalizedFor(scale, PlaybackDirection.Forward)
+            val step = scaleStepper.next(scale, currentCursor, PlaybackDirection.Forward)
             _uiState.update { it.copy(playbackCursor = step.nextCursor) }
         }
     }
@@ -207,6 +208,7 @@ class ScaleEditorViewModel(
                     scale = scale,
                     initialCursor = uiState.value.playbackCursor,
                     bpmProvider = { uiState.value.bpm },
+                    directionProvider = { PlaybackDirection.Forward },
                     updateCursor = { cursor ->
                         _uiState.update { it.copy(playbackCursor = cursor) }
                     },
