@@ -2,38 +2,37 @@
 
 ## Responsibility
 
-The analyzer is the library that turns audio into a playable draft scale plus supporting evidence.
+The analyzer is the library that turns audio into a playable draft scale.
+
+Low-level recognition details exist inside the analyzer for tuning, debugging, and tests, but they are not the main public contract.
 
 ## External Contract
 
-```text
-Input  : audio file or recording
-Output : ScaleDraft + evidence
+```mermaid
+flowchart LR
+    Audio["audio file or recording"] --> Analyzer["Analyzer"] --> Draft["ScaleDraft"]
 ```
 
-More explicitly:
+Internally it may also produce diagnostics:
 
-```text
-audio -> analyzer -> {
-  draftScale,
-  detectedNotes,
-  candidates,
-  phraseInfo,
-  optional timing inference,
-  debug/review evidence
-}
+```mermaid
+flowchart LR
+    AudioDiag["audio"] --> AnalyzerDiag["analyzer"] --> DraftDiag["draftScale"]
+    AnalyzerDiag -.-> Notes["detected notes"]
+    AnalyzerDiag -.-> Candidates["candidates"]
+    AnalyzerDiag -.-> Phrases["phrase info"]
+    AnalyzerDiag -.-> Timing["optional timing inference"]
+    AnalyzerDiag -.-> Diagnostics["internal diagnostics"]
 ```
 
 ## Internal Shape
 
-```text
-+------------------------ analyzer ------------------------+
-|                                                          |
-|  input -> recognizer -> contextualizer -> draft-builder |
-|            |                 |                  |        |
-|            +------ evidence --+-----------------+        |
-|                                                          |
-+----------------------------------------------------------+
+```mermaid
+flowchart LR
+    Input["input"] --> Recognizer["recognizer"] --> Contextualizer["contextualizer"] --> DraftBuilder["draft-builder"]
+    Recognizer -. evidence .-> DiagnosticsA["diagnostics"]
+    Contextualizer -. evidence .-> DiagnosticsA
+    DraftBuilder -. evidence .-> DiagnosticsA
 ```
 
 ### `input`
@@ -114,15 +113,23 @@ Current example:
 
 - `DefaultScaleDraftBuilder`
 
+## Public API Rule
+
+The app should depend on the analyzer like this:
+
+```kotlin
+interface Analyzer {
+    suspend fun analyze(recording: AudioRecording): ScaleDraft?
+}
+```
+
+If the app later wants to show debug evidence, that should come from a separate diagnostics path, not by making pitch frames and note events the primary app-facing API.
+
 ## Current Runtime Flow
 
-```text
-picked file
-  -> AudioFileImporter
-  -> AudioRecording
-  -> RecordingAnalysisPipeline
-  -> ScaleDraft + evidence
-  -> review screen
+```mermaid
+flowchart LR
+    PickedFile["picked file"] --> Importer["AudioFileImporter"] --> Recording["AudioRecording"] --> Pipeline["RecordingAnalysisPipeline"] --> Draft2["ScaleDraft"] --> Review["review screen"]
 ```
 
 ## What The Analyzer Must Not Know
@@ -136,20 +143,30 @@ picked file
 
 Best cleanup from the current implementation:
 
-```text
-RecordingAnalysisPipeline
-    becomes the top-level Analyzer facade
-    over smaller explicit interfaces:
-      NoteExtractor
-      ScaleContextualizer
-      TimingInferencer
-      ScaleDraftBuilder
+```mermaid
+flowchart TD
+    Pipeline["RecordingAnalysisPipeline"] --> Facade["Analyzer facade"]
+    Facade --> NoteExtractor["NoteExtractor"]
+    Facade --> Contextualizer2["ScaleContextualizer"]
+    Facade --> TimingInferencer["TimingInferencer"]
+    Facade --> DraftBuilder2["ScaleDraftBuilder"]
 ```
+
+## Diagnostics Rule
+
+- `PitchFrame`
+- `DetectedNoteEvent`
+- `DetectedPhrase`
+- `ScaleCandidate`
+
+These are analyzer internals.
+They are useful for tests and tuning, but they should not leak into the normal app contract.
 
 ## Testing Strategy
 
-```text
-audio fixture -> recognizer     -> note assertions
-note fixture  -> contextualizer -> phrase/candidate assertions
-audio fixture -> analyzer       -> draft assertions
+```mermaid
+flowchart TD
+    AudioFixture1["audio fixture"] --> RecognizerTest["recognizer"] --> NoteAssertions["note assertions"]
+    NoteFixture["note fixture"] --> ContextualizerTest["contextualizer"] --> PhraseAssertions["phrase / candidate assertions"]
+    AudioFixture2["audio fixture"] --> AnalyzerTest["analyzer"] --> DraftAssertions["draft assertions"]
 ```

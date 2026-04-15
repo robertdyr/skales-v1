@@ -6,30 +6,28 @@ Storage persists approved final scales and retrieves them for the rest of the ap
 
 ## External Contract
 
-```text
-Scale <-> persistence
+```mermaid
+flowchart LR
+    ScaleA["Scale"] <--> Persistence["persistence"]
 ```
 
 ## Internal Shape
 
-```text
-+---------------- storage ----------------+
-|                                         |
-|  Scale <-> repository <-> DAO <-> Room  |
-|                                         |
-+-----------------------------------------+
+```mermaid
+flowchart LR
+    ScaleB["Scale"] <--> Repository["repository"] <--> Dao["DAO"] <--> Room["Room"]
 ```
 
 ## Current Code Mapping
 
-```text
-storage/
-├── ScaleRepository.kt
-└── local/
-    ├── Converters.kt
-    ├── ScaleDao.kt
-    ├── ScaleEntity.kt
-    └── SkalesDatabase.kt
+```mermaid
+flowchart TD
+    StorageDir["storage/"] --> Repository2["ScaleRepository.kt"]
+    StorageDir --> Local["local/"]
+    Local --> Converters["Converters.kt"]
+    Local --> ScaleDao["ScaleDao.kt"]
+    Local --> ScaleEntity["ScaleEntity.kt"]
+    Local --> Database["SkalesDatabase.kt"]
 ```
 
 ## Current Rule

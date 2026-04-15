@@ -4,7 +4,29 @@
 
 Think of Skales as an Android shell around a few internal libraries.
 
-Primary boxes:
+This is not in conflict with MVVM.
+
+- MVVM is the screen-layer pattern
+- components are the domain/service boundaries behind the screens
+
+In practice:
+
+- `View` = Compose screens
+- `ViewModel` = screen state + user-intent handling
+- `Model` = app models plus component APIs (`Scale`, `ScaleDraft`, `Analyzer`, `ScaleRepository`, etc.)
+
+So the app can be both:
+
+- MVVM at the UI layer
+- component/library-oriented at the domain layer
+
+Current preference:
+
+- components should default to being testable libraries with narrow APIs
+- screen `ViewModel`s should own screen/session state
+- only keep state inside a component when it is true engine state that cannot reasonably live at the screen layer
+
+Primary components:
 
 - `analyzer`
 - `player`
@@ -12,76 +34,95 @@ Primary boxes:
 - `storage`
 - `app-shell`
 
-## Box Diagram
+## Component Diagram
 
-```text
-            +-------------------+
-            |     app-shell     |
-            | screens, nav, VM  |
-            +---------+---------+
-                      |
-      +---------------+----------------+
-      |               |                |
-      v               v                v
-+-----------+   +-----------+   +-------------+
-| analyzer  |   |  editor   |   |   player    |
-| audio ->  |   | draft ->  |   | Scale ->    |
-| ScaleDraft|   | Scale     |   | sound       |
-+-----+-----+   +-----+-----+   +------+------+
-      |               |                |
-      +---------------+----------------+
-                      |
-                      v
-               +-------------+
-               |   storage   |
-               | Room / repo |
-               +-------------+
+```mermaid
+flowchart TD
+    App["app-shell<br/>screens, nav, ViewModels"]
+    Analyzer["analyzer<br/>audio -> draft"]
+    Editor["editor<br/>pure edit operations"]
+    Player["player<br/>Scale -> sound"]
+    Storage["storage<br/>Room / repository"]
+
+    App --> Analyzer
+    App --> Editor
+    App --> Player
+    App --> Storage
 ```
+
+The key point is that components do not all persist directly.
+
+- `storage` is a separate persistence component
+- `app-shell` decides when to save or load through `storage`
+- `analyzer`, `editor`, and `player` should not write persistent app state themselves
 
 ## Ownership Summary
 
-```text
-analyzer  : audio -> draft + evidence
-editor    : editable draft/state -> Scale
-player    : Scale -> audible playback
-storage   : Scale <-> persistence
-app-shell : user flow orchestration
+```mermaid
+flowchart LR
+    Analyzer["analyzer<br/>audio -> draft"]
+    Editor["editor<br/>draft/manual input -> saveable Scale"]
+    Player["player<br/>Scale -> playback"]
+    Storage["storage<br/>Scale <-> persistence"]
+    App["app-shell<br/>screens, nav, ViewModels, orchestration"]
 ```
+
+More concretely:
+
+- `analyzer` produces a draft
+- `editor` transforms draft/manual input into a saveable `Scale`
+- `player` consumes a `Scale` for playback
+- `storage` saves and loads final approved `Scale`s
+- `app-shell` coordinates those handoffs
+
+State should not all live in one place.
+
+- screen/UI state belongs in screen `ViewModel`s
+- components should prefer pure operations and input/output contracts
+- analyzer/storage should be effectively stateless from the app's point of view
+- player may have short-lived engine internals, but playback session state should usually live in a `ViewModel`
 
 ## Current Code Mapping
 
-```text
-model/     -> shared domain models (Scale, Note, etc.)
-analyzer/  -> (not yet implemented) audio -> draft + evidence
-player/    -> PianoSoundPlayer, ScaleAutoPlayer, ScaleStepper
-storage/   -> local/ (Room DB), ScaleRepository
-app/       -> MainActivity, SkalesApplication, screens/, viewmodel/, navigation/, components/, theme/
+```mermaid
+flowchart TD
+    Model["model/<br/>shared domain models"]
+    AnalyzerPkg["analyzer/<br/>audio -> draft facade + internal pipeline"]
+    EditorPkg["editor/<br/>pure editing operations"]
+    PlayerPkg["player/<br/>PianoSoundPlayer, ScaleAutoPlayer, ScaleStepper"]
+    StoragePkg["storage/<br/>Room + ScaleRepository"]
+    AppPkg["app/<br/>activity, screens, viewmodels, nav, components, theme"]
 ```
 
-The boxes are packages within `com.example.skales`:
+The components are packages within `com.example.skales`:
 
-```text
-com.example.skales/
-├── model/      # shared models used by all boxes
-├── analyzer/   # (future) audio recognition
-├── player/     # playback engine
-├── storage/    # persistence
-└── app/        # shell: screens, viewmodels, navigation, UI
+```mermaid
+flowchart TD
+    Root["com.example.skales/"]
+    Root --> ModelDir["model/<br/>shared models"]
+    Root --> AnalyzerDir["analyzer/<br/>audio recognition"]
+    Root --> EditorDir["editor/<br/>editing helpers"]
+    Root --> PlayerDir["player/<br/>playback engine"]
+    Root --> StorageDir["storage/<br/>persistence"]
+    Root --> AppDir["app/<br/>shell: screens, viewmodels, navigation, UI"]
 ```
 
 ## Dependency Direction
 
 The intended dependency flow is:
 
-```text
-app-shell
-  -> analyzer
-  -> editor
-  -> player
-  -> storage
+```mermaid
+flowchart TD
+    App["app-shell"] --> Analyzer["analyzer"]
+    App --> Editor["editor"]
+    App --> Player["player"]
+    App --> Storage["storage"]
 ```
 
 And not the other way around.
+
+That does not mean all components call `storage`.
+It means `app-shell` depends on all of them and coordinates between them.
 
 Component rules:
 

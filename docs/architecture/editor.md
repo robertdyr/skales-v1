@@ -12,39 +12,43 @@ Ideally, recording works so well that most users never need the editor. But it m
 
 ## External Contract
 
-```text
-Input  : manual note entry, and later draft-to-edit handoff
-Output : final Scale
+```mermaid
+flowchart LR
+    State["current draft/manual state"] --> Editor["editor"]
+    Action["edit action"] --> Editor
+    Editor --> Scale["final Scale"]
 ```
 
 ## Internal Shape
 
-```text
-+--------------------- editor ---------------------+
-|                                                   |
-|  input controls -> editable state -> saveable     |
-|                     |               Scale         |
-|                     +-> preview playback          |
-|                                                   |
-+---------------------------------------------------+
+```mermaid
+flowchart LR
+    Draft["current draft"] --> EditOps["edit operations"] --> NextDraft["next draft/state"]
+    Action2["edit action"] --> EditOps
+    EditOps --> Saveable["saveable Scale"]
 ```
 
 ## Current Responsibilities
 
-- name the scale
-- manage sets
-- append notes into the selected set
-- add or remove cue sounds
-- preview playback
-- save the final scale
+- pure edit operations over sets/sounds
+- draft-to-Scale conversion
+- labels/helpers for editor-specific domain behavior
+
+The editor component should not own screen/session state by default.
+`selectedSetIndex`, loading flags, playback flags, and navigation state belong in app-layer `ViewModel`s.
 
 ## Current Code Mapping
 
-- `app/screens/ScaleEditorScreen`
-- `app/viewmodel/ScaleEditorViewModel`
-- `app/components/PianoKeyboard`
+- `editor/ScaleEditorOps.kt`
+- `app/viewmodel/ScaleEditorViewModel.kt`
+- `app/screens/ScaleEditorScreen.kt`
+- `app/components/PianoKeyboard.kt`
 
-Note: Currently the editor logic lives in the app shell. A future `editor/` package could extract reusable editing state management if needed.
+Current split:
+
+- `editor/` provides pure editing operations
+- `app/viewmodel/ScaleEditorViewModel` owns screen/session state
+- `app/` owns UI components and navigation
 
 ## Future Role In Audio Flow
 
@@ -52,8 +56,9 @@ The editor should become the correction surface after analysis.
 
 Target handoff:
 
-```text
-ScaleDraft -> Editor -> corrected Scale
+```mermaid
+flowchart LR
+    DraftHandoff["ScaleDraft"] --> EditorHandoff["Editor"] --> Corrected["corrected Scale"]
 ```
 
 ## What The Editor Must Not Know

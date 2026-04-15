@@ -10,12 +10,11 @@ The goal is for recording to work so well that users rarely need manual editing.
 
 ## Core Promise
 
-```text
-recording (primary) ----->
-                          \ 
-                           > saved Scale -> playback
-                          /
-manual input (fallback) -->
+```mermaid
+flowchart LR
+    Recording["recording (primary)"] --> Saved["saved Scale"]
+    Manual["manual input (fallback)"] --> Saved
+    Saved --> Playback["playback"]
 ```
 
 The product is **recording-first, playback-focused**.
@@ -36,31 +35,44 @@ The app should help the user:
 
 ### Flow A: Recording (Primary)
 
-```text
-Library -> Record -> Analyze -> Review -> Save -> Player
-                                   \-> Editor (if correction needed)
+```mermaid
+flowchart LR
+    LibraryA["Library"] --> Record["Record"]
+    Record --> Analyze["Analyze"]
+    Analyze --> Review["Review"]
+    Review --> SaveA["Save"]
+    SaveA --> PlayerA["Player"]
+    Analyze -. if correction needed .-> EditorA["Editor"]
 ```
 
 This is the ideal path. The user records, the app recognizes, and they practice.
 
 ### Flow B: Manual Creation (Fallback)
 
-```text
-Library -> Editor -> Save -> Player
+```mermaid
+flowchart LR
+    LibraryB["Library"] --> EditorB["Editor"]
+    EditorB --> SaveB["Save"]
+    SaveB --> PlayerB["Player"]
 ```
 
 For power users who want full control or when recording isn't practical.
 
 ### Flow C: Practice Existing Scale
 
-```text
-Library -> Player
+```mermaid
+flowchart LR
+    LibraryC["Library"] --> PlayerC["Player"]
 ```
 
 ### Flow D: Correction
 
-```text
-Player -> Edit -> Editor -> Save -> Player
+```mermaid
+flowchart LR
+    PlayerD1["Player"] --> Edit["Edit"]
+    Edit --> EditorD["Editor"]
+    EditorD --> SaveD["Save"]
+    SaveD --> PlayerD2["Player"]
 ```
 
 When a saved scale needs adjustment.

@@ -1,4 +1,4 @@
-package com.example.skales.domain.analysis
+package com.example.skales.analyzer
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -142,7 +142,7 @@ class DefaultRecordingAnalysisComponentsTest {
             scaleDraftBuilder = DefaultScaleDraftBuilder(),
         )
 
-        val result = pipeline.analyze(
+        val result = pipeline.analyzeDetailed(
             AudioRecording(
                 id = "rec-1",
                 filePath = "test.wav",

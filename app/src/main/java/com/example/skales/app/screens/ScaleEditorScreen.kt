@@ -29,9 +29,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.skales.player.PlaybackCursor
 import com.example.skales.model.ScaleSet
 import com.example.skales.model.ScaleSoundKind
-import com.example.skales.editor.PianoKeyboard
-import com.example.skales.editor.ScaleEditorViewModel
-import com.example.skales.editor.labelForSound
+import com.example.skales.app.components.PianoKeyboard
+import com.example.skales.app.viewmodel.ScaleEditorViewModel
+import com.example.skales.editor.ScaleEditorOps
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -226,7 +226,7 @@ private fun SetCard(
                         AssistChip(
                             onClick = onSelect,
                             label = {
-                                Text("${prefix}${soundIndex + 1}: ${labelForSound(sound)}$breakLabel")
+                                Text("${prefix}${soundIndex + 1}: ${ScaleEditorOps.labelForSound(sound)}$breakLabel")
                             },
                         )
                     }

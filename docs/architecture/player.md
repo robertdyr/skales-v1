@@ -4,24 +4,23 @@
 
 The player is the library that turns a final `Scale` into audible playback.
 
+The player should prefer operation-style APIs over owning screen session state.
+
 ## External Contract
 
-```text
-Input  : Scale
-Output : sound playback
+```mermaid
+flowchart LR
+    ScaleIn["Scale"] --> Player["player"] --> Sound["sound playback"]
 ```
 
 ## Internal Shape
 
-```text
-+-------------------- player --------------------+
-|                                                |
-|  Scale -> stepper -> scheduler -> sound player |
-|             |                    |             |
-|             +---- cursor state ---+            |
-|                                                |
-+------------------------------------------------+
+```mermaid
+flowchart LR
+    ScaleFlow["Scale"] --> Stepper["stepper"] --> Scheduler["scheduler"] --> SoundPlayer["sound player"]
 ```
+
+Screen/session state such as current cursor, direction, and play/pause status should usually live in a `ViewModel`.
 
 ## Main Parts
 
@@ -30,7 +29,7 @@ Output : sound playback
 Owns:
 
 - one playback step at a time
-- cursor advancement
+- next-cursor calculation
 - per-step wait calculation
 
 ### `ScaleAutoPlayer`
@@ -40,6 +39,8 @@ Owns:
 - repeated stepping over time
 - BPM-based scheduling
 - stop/cancel behavior
+
+This may have short-lived internal runtime state, but it should not become the owner of screen playback state.
 
 ### `PianoSoundPlayer`
 
@@ -66,20 +67,18 @@ The player consumes the saved playback model:
 
 ## Current Code Mapping
 
-```text
-player/
-├── PianoSoundPlayer.kt
-├── ScaleAutoPlayer.kt
-└── ScaleStepper.kt
+```mermaid
+flowchart TD
+    PlayerDir["player/"] --> PianoSoundPlayer["PianoSoundPlayer.kt"]
+    PlayerDir --> ScaleAutoPlayer["ScaleAutoPlayer.kt"]
+    PlayerDir --> ScaleStepper2["ScaleStepper.kt"]
 ```
 
 ## Current Behavior
 
-```text
-Scale
-  -> Play / Step
-  -> Forward or Backward
-  -> audible practice playback
+```mermaid
+flowchart LR
+    ScaleBehavior["Scale"] --> PlayStep["Play / Step"] --> Direction["Forward or Backward"] --> Audible["audible practice playback"]
 ```
 
 ## Future Extension Points

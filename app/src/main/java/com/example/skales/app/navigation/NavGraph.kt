@@ -15,8 +15,8 @@ import com.example.skales.storage.ScaleRepository
 import com.example.skales.app.screens.ScaleEditorScreen
 import com.example.skales.app.screens.ScaleListScreen
 import com.example.skales.app.screens.ScalePlayerScreen
-import com.example.skales.editor.ScaleEditorViewModel
 import com.example.skales.app.viewmodel.ScaleListViewModel
+import com.example.skales.app.viewmodel.ScaleEditorViewModel
 import com.example.skales.app.viewmodel.ScalePlayerViewModel
 
 object Routes {

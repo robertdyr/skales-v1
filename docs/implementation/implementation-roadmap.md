@@ -4,7 +4,7 @@
 
 Build the app as a set of clear internal libraries, then wire them together with the Android shell.
 
-Primary boxes:
+Primary components:
 
 - `analyzer`
 - `player`
@@ -12,7 +12,7 @@ Primary boxes:
 - `storage`
 - `app-shell`
 
-## Box Roadmap
+## Component Roadmap
 
 ```text
 Phase 1: app-shell + analyzer + storage + player
@@ -94,7 +94,7 @@ This should stay thin.
 
 ## Immediate Next Refactor
 
-The current code works, but the `analyzer` box is still spread across pipeline-stage classes.
+The current code works, but the `analyzer` component is still spread across pipeline-stage classes.
 
 Best next architectural cleanup:
 
@@ -182,7 +182,7 @@ Refine `player` and `editor` to support richer timing authored by the analyzer.
 
 ## Decision Rule
 
-If a new feature idea appears, first ask which box it belongs to.
+If a new feature idea appears, first ask which component it belongs to.
 
 Examples:
 
