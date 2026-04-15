@@ -1,3 +1,5 @@
+screenshots/
+
 *.iml
 .gradle
 /local.properties

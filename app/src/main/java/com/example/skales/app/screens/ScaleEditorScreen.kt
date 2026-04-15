@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -65,6 +66,23 @@ fun ScaleEditorScreen(
                 },
             )
         },
+        bottomBar = {
+            if (uiState.isLoaded) {
+                EditorPlaybackDock(
+                    bpm = uiState.bpm,
+                    cursorLabel = playbackCursorLabel(uiState.playbackCursor),
+                    isPlaying = uiState.isPlaying,
+                    canPlay = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
+                    canStep = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
+                    onDecreaseBpm = viewModel::decreaseBpm,
+                    onIncreaseBpm = viewModel::increaseBpm,
+                    onPlay = viewModel::playScale,
+                    onStep = viewModel::stepScale,
+                    onReset = viewModel::resetPlaybackCursor,
+                    onStop = viewModel::stopScale,
+                )
+            }
+        },
     ) { innerPadding ->
         if (!uiState.isLoaded) {
             SkalesBackground(
@@ -84,7 +102,7 @@ fun ScaleEditorScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SkalesPanel {
@@ -116,51 +134,6 @@ fun ScaleEditorScreen(
                             unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
                         ),
                     )
-                }
-
-                SkalesPanel {
-                    SkalesSectionHeader(
-                        title = "Playback preview",
-                        supporting = playbackCursorLabel(uiState.playbackCursor),
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SkalesMetric(label = "Tempo", value = "${uiState.bpm} BPM")
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SkalesCircleButton(label = "-", onClick = viewModel::decreaseBpm, size = 48.dp)
-                            SkalesCircleButton(label = "+", onClick = viewModel::increaseBpm, size = 48.dp)
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        SkalesPrimaryButton(
-                            text = if (uiState.isPlaying) "Playing" else "Play",
-                            onClick = viewModel::playScale,
-                            enabled = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                        )
-                        SkalesSecondaryButton(
-                            text = "Step",
-                            onClick = viewModel::stepScale,
-                            enabled = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SkalesSecondaryButton(text = "Reset", onClick = viewModel::resetPlaybackCursor)
-                        SkalesSecondaryButton(
-                            text = "Stop",
-                            onClick = viewModel::stopScale,
-                            enabled = uiState.isPlaying,
-                        )
-                    }
                 }
 
                 SkalesPanel {
@@ -297,6 +270,66 @@ fun ScaleEditorScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditorPlaybackDock(
+    bpm: Int,
+    cursorLabel: String,
+    isPlaying: Boolean,
+    canPlay: Boolean,
+    canStep: Boolean,
+    onDecreaseBpm: () -> Unit,
+    onIncreaseBpm: () -> Unit,
+    onPlay: () -> Unit,
+    onStep: () -> Unit,
+    onReset: () -> Unit,
+    onStop: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        SkalesPanel(modifier = Modifier.fillMaxWidth()) {
+            SkalesSectionHeader(
+                title = "Playback",
+                supporting = cursorLabel,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SkalesMetric(label = "Tempo", value = "$bpm BPM")
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SkalesCircleButton(label = "-", onClick = onDecreaseBpm, size = 48.dp)
+                    SkalesCircleButton(label = "+", onClick = onIncreaseBpm, size = 48.dp)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SkalesPrimaryButton(
+                    text = if (isPlaying) "Playing" else "Play",
+                    onClick = onPlay,
+                    modifier = Modifier.weight(1f),
+                    enabled = canPlay,
+                )
+                SkalesSecondaryButton(
+                    text = "Step",
+                    onClick = onStep,
+                    modifier = Modifier.weight(1f),
+                    enabled = canStep,
+                )
+                SkalesSecondaryButton(text = "Reset", onClick = onReset)
+                SkalesSecondaryButton(text = "Stop", onClick = onStop, enabled = isPlaying)
             }
         }
     }

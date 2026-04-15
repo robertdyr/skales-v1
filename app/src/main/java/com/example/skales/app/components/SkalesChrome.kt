@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,27 +41,12 @@ fun SkalesBackground(
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
-        modifier = modifier.background(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFF2A2A2B),
-                    MaterialTheme.colorScheme.background,
-                    Color(0xFF0D0D0F),
-                ),
-            ),
-        ),
+        modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
+                .background(Color(0xFF101011)),
         )
         content()
     }
