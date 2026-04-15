@@ -1,164 +1,173 @@
-# Skales — Agent Context
+# AGENT.md
 
-Read this before making changes.
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
-## Product
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-Skales is an Android singing-practice app for building and replaying custom scale exercises.
-The current product direction is playback-first: the domain should model what gets played, in what
-grouping, and with what spacing.
+## 1. Think Before Coding
 
-There is no backend in this repo.
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-## Stack
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-- Kotlin
-- Jetpack Compose + Material3
-- MVVM
-- Coroutines + StateFlow
-- Room
-- Navigation Compose
-- Sample-based piano playback via `SoundPool`
+## 2. Simplicity First
 
-## Domain Model
+**Minimum code that solves the problem. Nothing speculative.**
 
-The scale model is now set-based and event-based.
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
 
-```kotlin
-enum class ScaleSoundKind {
-    Cue,
-    Note,
-}
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-data class ScaleSound(
-    val notes: List<Int>,
-    val kind: ScaleSoundKind,
-    val breakAfterBeats: Float? = null,
-)
+## 3. Surgical Changes
 
-data class ScaleSet(
-    val sounds: List<ScaleSound>,
-    val breakAfterBeats: Float? = null,
-)
+**Touch only what you must. Clean up only your own mess.**
 
-data class PlaybackTiming(
-    val defaultBpm: Int,
-)
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
 
-data class Scale(
-    val id: String,
-    val name: String,
-    val sets: List<ScaleSet>,
-    val timing: PlaybackTiming,
-)
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
 ```
 
-Mental model:
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-- `C --- N ---- N ---- N -- N -- N`
-- `C` means a cue sound event
-- `N` means a normal note sound event
-- `-` means beat-space after that sound
-- scales are organized into sets, so the real shape is closer to:
-  - `Set 1: C --- N ---- N`
-  - `Set 2: C --- N -- N -- N`
+---
 
-Important details:
+## Project-Specific Context: Skales
 
-- A `ScaleSound` is one playback step.
-- A sound may contain one note or many notes played together.
-- Cue sounds are not special playback rules anymore; they are regular sounds with `kind = Cue`.
-- Per-sound spacing lives on `ScaleSound.breakAfterBeats`.
-- Per-set spacing lives on `ScaleSet.breakAfterBeats`.
-- The only global timing value is BPM.
+### Documentation First
 
-Defaults currently used by playback when breaks are omitted:
+**All architectural and product documentation is in `/docs`.** Before making changes:
 
-- note sound break: `1f`
-- cue sound break: `1.5f`
-- set break: `1.75f`
+1. Check `docs/overview.md` for product vision and current build focus
+2. Check `docs/architecture/` for component contracts and boundaries
+3. Check `docs/roadmap.md` for development priorities
+4. Check `docs/ui-ux/` for screen design patterns
 
-## Playback Architecture
+**The docs are the source of truth.** If code and docs conflict, ask which should change.
 
-Playback is split into three layers.
+### Architecture Rules
 
-### `PianoSoundPlayer`
+**Component boundaries matter.** Components are testable libraries with narrow APIs:
 
-The dumb audio layer.
+- `analyzer` - audio → note evidence (future phase)
+- `infer` - seed/evidence → draft generation
+- `editor` - scale authoring and correction operations
+- `player` - scale playback engine
+- `storage` - Room persistence
+- `app-shell` - screens, ViewModels, navigation, orchestration
 
-Responsibilities:
+**Dependency direction:** `app-shell` depends on components, not the other way around.
 
-- load piano samples into `SoundPool`
-- play a single sound event via `playSound(notes: List<Int>)`
-- stop active streams
-- release audio resources
+**State ownership:**
+- Screen/UI state lives in `ViewModel`s
+- Components should be stateless or have minimal engine state
+- Session state (playback cursor, editing state) lives in `ViewModel`s, not components
 
-It does not know about BPM, sets, or scheduling.
+See `docs/architecture/overview.md` for full dependency rules.
 
-### `PlaybackCursor`
+### Domain Model Constraints
 
-The shared playback state.
+See `docs/architecture/models.md` for full model definitions.
 
-```kotlin
-data class PlaybackCursor(
-    val setIndex: Int = 0,
-    val soundIndexInSet: Int = 0,
-    val isFinished: Boolean = false,
-)
-```
+**Critical rules:**
+- Domain models (`Scale`, `ScaleSet`, `ScaleSound`) do not contain persistence metadata
+- Persistence metadata (`createdAt`, `updatedAt`) lives only in `ScaleEntity`
+- Do not reintroduce the old flat `notes + setStarts + cue` shape
+- All timing is beat-based with explicit BPM
+- Cue sounds are regular sounds with `kind = Cue` (no special playback rules)
 
-This is the canonical "where are we in the scale?" state shared by:
+### Terminology Matters
 
-- single-step playback
-- autoplay playback
+**Use these terms consistently:**
 
-### `ScaleStepper`
+- `infer` - draft generation from evidence or partial sets (not "complete", "generate", or "fill")
+- `analyzer` - audio to evidence extraction (not "detector" or "recognizer")
+- `evidence` - structured note/phrase data from audio (not "results" or "detection")
+- `draft` - inferred scale before user correction (not "suggestion" or "proposal")
+- `sets` - groupings of sounds (not "phrases" or "measures")
 
-Advances the cursor by one playable sound.
+**These are separate concerns:**
+- `analyzer` produces evidence from audio
+- `infer` produces drafts from evidence or partial sets
+- They are not the same component
 
-`next(scale, cursor)`:
+### Current Build Focus
 
-- plays exactly one `ScaleSound`
-- computes the wait in beats before the next step
-- advances the cursor
+**Editor-first creation is the MVP priority.** Recording analysis comes later.
 
-### `ScaleAutoPlayer`
+Current priority order:
+1. Editor-first scale authoring
+2. Partial-set inference and reinference
+3. Piano-roll editing with configurable snap
+4. Smooth save and playback handoff
+5. Later: recording analysis and microphone capture
 
-Automation around the stepper.
+**When proposing features, ask:**
+1. Does it make editor-first creation easier?
+2. Does it improve infer quality or reinference usability?
+3. Is it recording-analysis work that can wait?
 
-It repeatedly:
+See `docs/roadmap.md` for phased priorities.
 
-1. calls `ScaleStepper.next(...)`
-2. converts beats to milliseconds using current BPM
-3. suspends via `delay(...)`
-4. continues until the cursor is finished or playback is canceled
+### Code Style
 
-This means BPM changes during playback affect future waits immediately.
+**Match existing patterns:**
+- MVVM for screens (View = Compose, ViewModel = state + intents, Model = domain + components)
+- Kotlin coroutines + StateFlow for async
+- Jetpack Compose + Material3 for UI
+- Navigation Compose for routing
+- Room for persistence with type converters for nested models
 
-## Persistence
+**Prefer:**
+- Readable state over clever implicit scheduling
+- Explicit operations over hidden side effects
+- Pure functions in components where possible
+- Small, focused changes
 
-- Room still stores persistence-only timestamps in `ScaleEntity`
-- domain `Scale` does not contain `createdAt` / `updatedAt`
-- `ScaleEntity` now stores `sets` and `defaultBpm`
-- nested sets/sounds are serialized via Room type converters
-- destructive migration is still enabled while the schema is changing quickly
+### Common Mistakes to Avoid
 
-## Current Editing Model
+❌ Don't put persistence logic in components (only `storage` persists)  
+❌ Don't make `player` depend on `analyzer` models  
+❌ Don't store screen state inside components  
+❌ Don't add recording/microphone features yet (future phase)  
+❌ Don't use old model terminology or flat scale shapes  
+❌ Don't skip the docs when uncertain
 
-The editor is now set-first.
+✅ Do consult docs before making changes  
+✅ Do keep components as testable libraries  
+✅ Do put screen state in ViewModels  
+✅ Do follow the current roadmap priorities  
+✅ Do use correct terminology consistently  
+✅ Do ask when architecture boundaries are unclear
 
-- scales are authored as sets containing sounds
-- tapping the piano adds a note sound to the selected set
-- `Add chord cue` prepends or replaces a cue sound in the selected set based on the set's note sounds
-- playback controls expose:
-  - step
-  - play
-  - stop
-  - reset cursor
 
-## Important Constraints
-
-- Keep changes small and explicit.
-- Prefer readable playback state over clever implicit scheduling.
-- Do not put persistence metadata into domain models.
-- Do not reintroduce the old flat `notes + setStarts + cue` shape unless explicitly requested.

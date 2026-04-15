@@ -1,117 +1,72 @@
 # Skales
 
-Skales is an Android app for building and replaying custom singing-practice scales.
+Skales is an Android app for creating, inferring, saving, and replaying custom singing-practice scales.
 
-## Domain Model
+## Documentation
 
-The exercise model is set-based and sound-based.
+Full documentation is available in `/docs`:
 
-```kotlin
-enum class ScaleSoundKind {
-    Cue,
-    Note,
-}
+- **`docs/overview.md`** - product vision, current build focus, and core user flows
+- **`docs/roadmap.md`** - development phases and priorities
+- **`docs/architecture/`** - component architecture and design
+- **`docs/ui-ux/`** - screen layout and interaction design
+- **`docs/implementation/`** - execution notes
 
-data class ScaleSound(
-    val notes: List<Int>,
-    val kind: ScaleSoundKind,
-    val breakAfterBeats: Float? = null,
-)
+Start with `docs/overview.md` for the big picture, then explore component-specific docs in `docs/architecture/`.
 
-data class ScaleSet(
-    val sounds: List<ScaleSound>,
-    val breakAfterBeats: Float? = null,
-)
+## Quick Summary
 
-data class PlaybackTiming(
-    val defaultBpm: Int,
-)
+### Product Vision
 
-data class Scale(
-    val id: String,
-    val name: String,
-    val sets: List<ScaleSet>,
-    val timing: PlaybackTiming,
-)
+Recording-first scale creation: record or import audio → analyze → infer draft → correct → save → play.
+
+### Current Build Focus
+
+Editor-first scale authoring with partial-set inference:
+
+```text
+editor → seed sets → infer missing sets → correct → save → play
 ```
 
-Mental model:
+The MVP focuses on manual editing and inference before adding full recording analysis.
 
-- `C --- N ---- N ---- N -- N -- N`
-- `C` is a cue sound
-- `N` is a normal note sound
-- `-` is beat-space after the sound
+### Stack
 
-Scales are organized into sets, so a real exercise looks more like:
+- Kotlin
+- Jetpack Compose + Material3
+- MVVM architecture
+- Coroutines + StateFlow
+- Room for local persistence
+- Navigation Compose
+- Sample-based piano playback via `SoundPool`
 
-- `Set 1: C --- N ---- N`
-- `Set 2: C --- N -- N -- N`
+### Core Components
 
-Each `ScaleSound` is one playback step. A sound can contain one note or several notes played at the same time.
+- **`analyzer`** - audio → note evidence (future)
+- **`infer`** - seed/evidence → draft generation
+- **`editor`** - scale authoring and correction
+- **`player`** - scale playback
+- **`storage`** - Room persistence
+- **`app-shell`** - screens, navigation, ViewModels
 
-## Timing
+See `docs/architecture/overview.md` for the full component architecture and `docs/architecture/models.md` for the domain model details.
 
-The only global timing value is BPM.
+## Project Status
 
-Per-event spacing is explicit:
+**Implemented:**
+- Scale library screen
+- Manual editor with piano-roll editing
+- Scale player with step and autoplay
+- Local persistence with Room
+- Basic inference support
 
-- `ScaleSound.breakAfterBeats` controls break after one sound
-- `ScaleSet.breakAfterBeats` adds extra break after the final sound in the set
+**In Progress:**
+- Locked-set reinference flow
+- Richer timing inference
+- Playback preview in editor
 
-Default playback spacing when a break is omitted:
+**Future:**
+- Recording analysis (analyzer component)
+- Microphone capture workflow
 
-- note: `1f`
-- cue: `1.5f`
-- set: `1.75f`
-
-## Playback Architecture
-
-Playback is split into three parts.
-
-### `PianoSoundPlayer`
-
-The dumb audio layer.
-
-- loads piano samples into `SoundPool`
-- plays a sound via `playSound(notes: List<Int>)`
-- stops active streams
-- releases audio resources
-
-### `PlaybackCursor`
-
-The shared global playback position.
-
-```kotlin
-data class PlaybackCursor(
-    val setIndex: Int = 0,
-    val soundIndexInSet: Int = 0,
-    val isFinished: Boolean = false,
-)
-```
-
-Both step playback and autoplay advance the same cursor.
-
-### `ScaleStepper`
-
-Single-step playback.
-
-- plays exactly one `ScaleSound`
-- advances the cursor
-- returns how many beats autoplay should wait before the next step
-
-### `ScaleAutoPlayer`
-
-Autoplay scheduler.
-
-- repeatedly calls the stepper
-- converts beats to milliseconds from the current BPM
-- suspends with `delay(...)` between steps
-
-This lets BPM changes take effect during playback without rebuilding a full queue.
-
-## Project Notes
-
-- Android only
-- No backend in this repo
-- Room is used for local persistence
-- destructive migration is currently enabled while the schema is still evolving
+See `docs/roadmap.md` for detailed phases and priorities.
