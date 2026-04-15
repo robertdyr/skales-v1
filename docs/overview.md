@@ -151,7 +151,7 @@ When a saved scale needs adjustment.
 These should remain stable unless there is a strong reason to change them:
 
 - `Scale` is the final saved playback object
-- `ScaleSet` is one repeatable exercise unit
+- `ScaleSet` is one repeatable exercise unit. A `Scale` consists of many `ScaleSet`s. 
 - users should review inferred results before saving when confidence is uncertain
 - audio analysis should produce evidence, not just a black-box answer
 - scale completion should be a separate inference step, not hidden inside audio analysis
