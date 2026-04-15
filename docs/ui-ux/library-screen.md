@@ -37,7 +37,8 @@ It should feel simple, calm, and decisive.
 ```text
 +--------------- empty state -------------+
 | No saved scales yet                    |
-| Create manually or import from audio   |
+| Create manually in the editor or later |
+| import from audio                      |
 | [Create first scale]                   |
 | [Import from audio]                    |
 +----------------------------------------+

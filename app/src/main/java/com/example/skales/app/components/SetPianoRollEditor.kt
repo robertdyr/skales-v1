@@ -37,9 +37,11 @@ import com.example.skales.editor.SetGridNote
 import com.example.skales.model.Note
 import kotlin.math.roundToInt
 
-private val CellWidth = 44.dp
+private val CellWidth = 36.dp
 private val RowHeight = 28.dp
 private val LabelWidth = 52.dp
+private val NoteWidth = 30.dp
+private val NoteHeight = 20.dp
 
 @Composable
 fun SetPianoRollEditor(
@@ -56,8 +58,8 @@ fun SetPianoRollEditor(
     val rollHeight = RowHeight * rowCount
     var selectedSoundId by remember(grid.notes) { mutableStateOf<String?>(null) }
     val dragOffsets = remember { mutableStateMapOf<String, Offset>() }
-    val strongGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
-    val softGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f)
+    val strongGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f)
+    val softGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
     val rowGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -86,10 +88,15 @@ fun SetPianoRollEditor(
                 .fillMaxWidth()
                 .horizontalScroll(horizontalScroll),
         ) {
-            Column(modifier = Modifier.width(LabelWidth)) {
-                for (midi in grid.maxMidi downTo grid.minMidi) {
+            Box(
+                modifier = Modifier
+                    .width(LabelWidth)
+                    .height(rollHeight),
+            ) {
+                for ((rowIndex, midi) in (grid.maxMidi downTo grid.minMidi).withIndex()) {
                     Box(
                         modifier = Modifier
+                            .offset(y = RowHeight * rowIndex)
                             .width(LabelWidth)
                             .height(RowHeight)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
@@ -149,8 +156,8 @@ fun SetPianoRollEditor(
                 }
 
                 grid.notes.forEach { note ->
-                    val baseX = CellWidth * note.column
-                    val baseY = RowHeight * (grid.maxMidi - note.midi)
+                    val baseX = (CellWidth * note.column) + ((CellWidth - NoteWidth) / 2)
+                    val baseY = (RowHeight * (grid.maxMidi - note.midi)) + ((RowHeight - NoteHeight) / 2)
                     val dragOffset = dragOffsets[note.soundId] ?: Offset.Zero
                     Box(
                         modifier = Modifier
@@ -160,9 +167,8 @@ fun SetPianoRollEditor(
                                     y = baseY.roundToPx() + dragOffset.y.roundToInt(),
                                 )
                             }
-                            .width(CellWidth - 6.dp)
-                            .height(RowHeight - 6.dp)
-                            .padding(3.dp)
+                            .width(NoteWidth)
+                            .height(NoteHeight)
                             .background(
                                 color = if (selectedSoundId == note.soundId) {
                                     MaterialTheme.colorScheme.primary
@@ -219,9 +225,11 @@ fun SetPianoRollEditor(
 
 private fun findHitNote(position: Offset, grid: SetGrid): SetGridNote? {
     return grid.notes.lastOrNull { note ->
-        val left = note.column * CellWidth.value
-        val top = (grid.maxMidi - note.midi) * RowHeight.value
-        position.x in left..(left + CellWidth.value - 6f) && position.y in top..(top + RowHeight.value - 6f)
+        val left = (note.column * CellWidth.value) + ((CellWidth.value - NoteWidth.value) / 2f)
+        val top = ((grid.maxMidi - note.midi) * RowHeight.value) + ((RowHeight.value - NoteHeight.value) / 2f)
+        val right = left + NoteWidth.value
+        val bottom = top + NoteHeight.value
+        position.x in left..right && position.y in top..bottom
     }
 }
 

@@ -32,6 +32,7 @@ data class ScaleEditorUiState(
     val sets: List<ScaleSet> = ScaleEditorOps.defaultSets(),
     val selectedSetIndex: Int = 0,
     val armedMidi: Int? = null,
+    val snapStepBeats: Float = SetGridOps.DefaultStepBeats,
     val bpm: Int = DefaultBpm,
     val playbackCursor: PlaybackCursor = PlaybackCursor(),
     val isEditing: Boolean = false,
@@ -99,6 +100,10 @@ class ScaleEditorViewModel(
         }
     }
 
+    fun setSnapStepBeats(stepBeats: Float) {
+        _uiState.update { it.copy(snapStepBeats = stepBeats) }
+    }
+
     fun addSet() {
         mutateSets { sets, _ -> ScaleEditorOps.addSet(sets) }
     }
@@ -125,7 +130,11 @@ class ScaleEditorViewModel(
                 sets = state.sets,
                 selectedSetIndex = state.selectedSetIndex,
                 midi = midi,
-                column = SetGridOps.nextFreeColumn(state.selectedSet ?: ScaleSet(sounds = emptyList())),
+                column = SetGridOps.nextFreeColumn(
+                    state.selectedSet ?: ScaleSet(sounds = emptyList()),
+                    state.snapStepBeats,
+                ),
+                stepBeats = state.snapStepBeats,
             )
             val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
             state.copy(
@@ -140,19 +149,19 @@ class ScaleEditorViewModel(
     fun addArmedOrDirectNoteToSelectedSet(column: Int, midi: Int) {
         val effectiveMidi = uiState.value.armedMidi ?: midi
         mutateSelectedSets { sets, selectedSetIndex ->
-            ScaleEditorOps.addNoteToSelectedSetAtColumn(sets, selectedSetIndex, effectiveMidi, column)
+            ScaleEditorOps.addNoteToSelectedSetAtColumn(sets, selectedSetIndex, effectiveMidi, column, uiState.value.snapStepBeats)
         }
     }
 
     fun moveNoteInSelectedSet(soundId: String, midi: Int, column: Int) {
         mutateSelectedSets { sets, selectedSetIndex ->
-            ScaleEditorOps.moveNoteInSelectedSet(sets, selectedSetIndex, soundId, midi, column)
+            ScaleEditorOps.moveNoteInSelectedSet(sets, selectedSetIndex, soundId, midi, column, uiState.value.snapStepBeats)
         }
     }
 
     fun removeNoteFromSelectedSet(soundId: String) {
         mutateSelectedSets { sets, selectedSetIndex ->
-            ScaleEditorOps.removeNoteFromSelectedSet(sets, selectedSetIndex, soundId)
+            ScaleEditorOps.removeNoteFromSelectedSet(sets, selectedSetIndex, soundId, uiState.value.snapStepBeats)
         }
     }
 

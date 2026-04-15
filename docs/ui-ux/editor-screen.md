@@ -31,6 +31,8 @@ It should feel functional, structured, and easy to understand even when a scale 
 +-------------- piano roll ---------------+
 | pitch rows + time grid                  |
 | draggable note blocks                   |
+| snap: 1/1, 1/2 default, 1/4 optional   |
+| changing snap does not rewrite timing   |
 | selected-set editing only               |
 +----------------------------------------+
 
@@ -57,6 +59,7 @@ It should feel functional, structured, and easy to understand even when a scale 
 4. let preview playback happen without leaving the editor
 5. make reinference available without overwhelming manual editing
 6. avoid accidental cross-set edits
+7. make snap changes safe and predictable
 
 ## Set Editing Rule
 
@@ -65,6 +68,16 @@ Use one piano roll for the active set.
 - dragging a note edits only the selected set
 - other sets appear as compact previews, not as editable overlapping lanes
 - moving content across sets should require an explicit action, not a normal drag
+- changing snap changes the grid, not the saved timing
+
+## Snap Rule
+
+Snap is an editor control, not a destructive transform.
+
+- `1/2` is the default snap
+- `1/1` and `1/4` are optional views/editing snaps
+- switching snap should only affect future placement and dragging
+- rewriting existing timing belongs to a separate quantize action if added later
 
 ## Future Draft-Correction And Reinference Mode
 

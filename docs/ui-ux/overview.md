@@ -28,6 +28,7 @@ Cross-screen loop:
 - keep inferred results editable and reinferable
 - keep correction simpler than inference internals
 - for multi-set editing, prefer one active-set piano roll over one giant shared timeline
+- treat snap size as a safe editor tool, not as an implicit quantize command
 
 ## Shared Layout Principles
 

@@ -82,6 +82,6 @@ Import audio -> Analyze audio -> Infer draft -> Review -> Save
 ## Future UX Additions
 
 - preview playback of the draft
-- open in editor for correction
+- open in editor for correction using the selected-set piano roll
 - infer missing sets from one or more corrected editor sets
 - timing visualization between detected sounds

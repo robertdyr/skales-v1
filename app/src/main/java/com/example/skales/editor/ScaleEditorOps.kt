@@ -72,9 +72,15 @@ object ScaleEditorOps {
         }
     }
 
-    fun addNoteToSelectedSetAtColumn(sets: List<ScaleSet>, selectedSetIndex: Int, midi: Int, column: Int): List<ScaleSet> {
+    fun addNoteToSelectedSetAtColumn(
+        sets: List<ScaleSet>,
+        selectedSetIndex: Int,
+        midi: Int,
+        column: Int,
+        stepBeats: Float,
+    ): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.addNoteAtColumn(set, midi, column)
+            SetGridOps.addNoteAtColumn(set, midi, column, stepBeats)
         }
     }
 
@@ -84,15 +90,16 @@ object ScaleEditorOps {
         soundId: String,
         midi: Int,
         column: Int,
+        stepBeats: Float,
     ): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.moveNote(set, soundId, midi, column)
+            SetGridOps.moveNote(set, soundId, midi, column, stepBeats)
         }
     }
 
-    fun removeNoteFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, soundId: String): List<ScaleSet> {
+    fun removeNoteFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, soundId: String, stepBeats: Float): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.removeNote(set, soundId)
+            SetGridOps.removeNote(set, soundId, stepBeats)
         }
     }
 

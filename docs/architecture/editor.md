@@ -35,6 +35,7 @@ flowchart LR
 - draft-to-Scale conversion
 - labels/helpers for editor-specific domain behavior
 - selected-set piano-roll projection and snapping helpers for editor interaction
+- non-destructive snap switching for the editor grid
 
 The editor component should not own screen/session state by default.
 `selectedSetIndex`, loading flags, playback flags, and navigation state belong in app-layer `ViewModel`s.
@@ -42,15 +43,23 @@ The editor component should not own screen/session state by default.
 ## Current Code Mapping
 
 - `editor/ScaleEditorOps.kt`
+- `editor/SetGridOps.kt`
 - `app/viewmodel/ScaleEditorViewModel.kt`
 - `app/screens/ScaleEditorScreen.kt`
 - `app/components/PianoKeyboard.kt`
+- `app/components/SetPianoRollEditor.kt`
 
 Current split:
 
 - `editor/` provides pure editing operations
 - `app/viewmodel/ScaleEditorViewModel` owns screen/session state
 - `app/` owns UI components and navigation
+
+Important interaction rule:
+
+- snap size is an editor interaction setting, not a destructive timing rewrite
+- changing from `1/4` to `1/2` or `1/1` changes the grid and future snapping behavior
+- existing stored note spacing should remain intact unless an explicit quantize action is introduced later
 
 ## Future Role In Inference Flow
 
@@ -80,6 +89,7 @@ Recommended interaction model:
 - show a compact strip of all sets
 - make one set active at a time
 - edit only the active set in a large piano-roll grid
+- allow snap changes without mutating note timing
 - keep cross-set movement explicit rather than accidental
 
 That preserves the app's set-based structure while still giving the user a much nicer spacing and pitch editing surface.

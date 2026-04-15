@@ -188,9 +188,26 @@ fun ScaleEditorScreen(
                         title = "Piano roll",
                         supporting = "Tap a key to arm a pitch, tap empty grid space to place it, and drag blocks to change pitch or spacing.",
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SnapChip(
+                            text = "1/1",
+                            selected = uiState.snapStepBeats == SetGridOps.CoarseStepBeats,
+                            onClick = { viewModel.setSnapStepBeats(SetGridOps.CoarseStepBeats) },
+                        )
+                        SnapChip(
+                            text = "1/2 beat",
+                            selected = uiState.snapStepBeats == SetGridOps.DefaultStepBeats,
+                            onClick = { viewModel.setSnapStepBeats(SetGridOps.DefaultStepBeats) },
+                        )
+                        SnapChip(
+                            text = "1/4 beat",
+                            selected = uiState.snapStepBeats == SetGridOps.FineStepBeats,
+                            onClick = { viewModel.setSnapStepBeats(SetGridOps.FineStepBeats) },
+                        )
+                    }
                     val selectedSet = uiState.selectedSet ?: ScaleSet(sounds = emptyList())
                     SetPianoRollEditor(
-                        grid = SetGridOps.toGrid(selectedSet),
+                        grid = SetGridOps.toGrid(selectedSet, stepBeats = uiState.snapStepBeats),
                         armedMidi = uiState.armedMidi,
                         onCellTap = viewModel::addArmedOrDirectNoteToSelectedSet,
                         onNoteMove = viewModel::moveNoteInSelectedSet,
@@ -283,6 +300,26 @@ fun ScaleEditorScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SnapChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    AssistChip(
+        onClick = onClick,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
+        ),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            labelColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        label = { Text(text) },
+    )
 }
 
 @Composable

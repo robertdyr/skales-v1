@@ -20,7 +20,9 @@ data class SetGrid(
 )
 
 object SetGridOps {
-    const val DefaultStepBeats = 0.25f
+    const val CoarseStepBeats = 1f
+    const val DefaultStepBeats = 0.5f
+    const val FineStepBeats = 0.25f
     const val DefaultMinMidi = 48
     const val DefaultMaxMidi = 84
     const val DefaultAdvanceBeats = 1f
@@ -56,23 +58,23 @@ object SetGridOps {
         )
     }
 
-    fun addNoteAtColumn(set: ScaleSet, midi: Int, column: Int): ScaleSet {
+    fun addNoteAtColumn(set: ScaleSet, midi: Int, column: Int, stepBeats: Float = DefaultStepBeats): ScaleSet {
         val newSound = ScaleSound(
             notes = listOf(midi),
             kind = ScaleSoundKind.Note,
             breakAfterBeats = DefaultAdvanceBeats,
         )
-        val notePositions = extractNotePositions(set) + PositionedNote(
+        val notePositions = extractNotePositions(set, stepBeats) + PositionedNote(
             soundId = newSound.id,
             sourceSound = newSound,
             midi = midi,
             column = column.coerceAtLeast(0),
         )
-        return rebuildSet(set, notePositions)
+        return rebuildSet(set, notePositions, stepBeats)
     }
 
-    fun moveNote(set: ScaleSet, soundId: String, midi: Int, column: Int): ScaleSet {
-        val notePositions = extractNotePositions(set).map { note ->
+    fun moveNote(set: ScaleSet, soundId: String, midi: Int, column: Int, stepBeats: Float = DefaultStepBeats): ScaleSet {
+        val notePositions = extractNotePositions(set, stepBeats).map { note ->
             if (note.soundId == soundId) {
                 note.copy(
                     midi = midi,
@@ -83,21 +85,21 @@ object SetGridOps {
                 note
             }
         }
-        return rebuildSet(set, notePositions)
+        return rebuildSet(set, notePositions, stepBeats)
     }
 
-    fun removeNote(set: ScaleSet, soundId: String): ScaleSet {
-        val remaining = extractNotePositions(set).filterNot { it.soundId == soundId }
-        return rebuildSet(set, remaining)
+    fun removeNote(set: ScaleSet, soundId: String, stepBeats: Float = DefaultStepBeats): ScaleSet {
+        val remaining = extractNotePositions(set, stepBeats).filterNot { it.soundId == soundId }
+        return rebuildSet(set, remaining, stepBeats)
     }
 
     fun nextFreeColumn(set: ScaleSet, stepBeats: Float = DefaultStepBeats): Int {
-        val positionedNotes = extractNotePositions(set)
+        val positionedNotes = extractNotePositions(set, stepBeats)
         val lastNote = positionedNotes.maxByOrNull { it.column } ?: return 0
         return lastNote.column + advanceToColumns(lastNote.sourceSound.breakAfterBeats, stepBeats)
     }
 
-    private fun rebuildSet(set: ScaleSet, notePositions: List<PositionedNote>): ScaleSet {
+    private fun rebuildSet(set: ScaleSet, notePositions: List<PositionedNote>, stepBeats: Float): ScaleSet {
         val cueSounds = set.sounds.filter { it.kind != ScaleSoundKind.Note }
         val ordered = notePositions.sortedWith(compareBy<PositionedNote> { it.column }.thenBy { it.midi })
         val rebuiltNotes = ordered.mapIndexed { index, note ->
@@ -105,7 +107,7 @@ object SetGridOps {
             val advanceBeats = if (nextColumn == null) {
                 note.sourceSound.breakAfterBeats ?: DefaultAdvanceBeats
             } else {
-                columnsToAdvance((nextColumn - note.column).coerceAtLeast(1), DefaultStepBeats)
+                columnsToAdvance((nextColumn - note.column).coerceAtLeast(1), stepBeats)
             }
             note.sourceSound.copy(
                 notes = listOf(note.midi),
@@ -116,7 +118,7 @@ object SetGridOps {
         return set.copy(sounds = cueSounds + rebuiltNotes)
     }
 
-    private fun extractNotePositions(set: ScaleSet): List<PositionedNote> {
+    private fun extractNotePositions(set: ScaleSet, stepBeats: Float): List<PositionedNote> {
         var currentColumn = 0
         return buildList {
             set.sounds.forEach { sound ->
@@ -129,7 +131,7 @@ object SetGridOps {
                             column = currentColumn,
                         ),
                     )
-                    currentColumn += advanceToColumns(sound.breakAfterBeats, DefaultStepBeats)
+                    currentColumn += advanceToColumns(sound.breakAfterBeats, stepBeats)
                 }
             }
         }

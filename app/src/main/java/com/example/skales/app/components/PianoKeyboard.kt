@@ -35,6 +35,8 @@ private const val KeyboardEndMidi = 108
 private const val InitialVisibleMidi = 48
 private val WhiteKeyWidth = 44.dp
 private val BlackKeyWidth = 28.dp
+private val PianoWhiteKeyColor = Color(0xFFF5F1E8)
+private val PianoWhiteKeyLabelColor = Color(0xFF5A5348)
 
 @Composable
 fun PianoKeyboard(
@@ -85,6 +87,7 @@ private fun WhiteKey(
     width: Dp,
     onClick: () -> Unit,
 ) {
+    val keyShape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
     Box(
         modifier = Modifier
             .width(width)
@@ -92,9 +95,9 @@ private fun WhiteKey(
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+                shape = keyShape,
             )
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(PianoWhiteKeyColor, keyShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.BottomCenter,
     ) {
@@ -102,7 +105,7 @@ private fun WhiteKey(
             text = whiteKeyLabel(note),
             modifier = Modifier.offset(y = (-12).dp),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = PianoWhiteKeyLabelColor,
             textAlign = TextAlign.Center,
         )
     }

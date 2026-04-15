@@ -42,6 +42,7 @@ Current focus:
 
 - editor-first scale authoring
 - partial-set inference and reinference
+- active-set piano-roll editing with visible note spacing
 - clear correction flow before save
 - smooth playback of saved scales
 
@@ -54,7 +55,7 @@ Why this comes first:
 Near-term ideal flow:
 
 ```text
-enter one or more sets -> infer the rest -> correct -> save -> play
+enter notes in the editor -> adjust spacing in the piano roll -> infer the rest -> correct -> save -> play
 ```
 
 ## Deferred For Now
@@ -70,6 +71,7 @@ These belong to later phases rather than the initial delivery scope:
 The app should help the user:
 
 - create a scale manually
+- place and drag notes on a piano-roll grid with clear spacing
 - seed one or more sets and infer the rest
 - inspect and correct a draft before saving
 - replay scales repeatedly for practice
@@ -108,6 +110,8 @@ flowchart LR
 ```
 
 This is the current priority path. The user seeds one or more known sets, the app infers the rest, and the user tightens the result until it is ready to save.
+
+In practice, that tightening happens in a selected-set piano roll with configurable snap sizes.
 
 ### Flow C: Manual Creation (Direct)
 
@@ -160,7 +164,7 @@ These should remain stable unless there is a strong reason to change them:
 Implemented now:
 
 - scale library screen
-- manual editor
+- manual editor with selected-set piano roll
 - scale player
 - local persistence with Room
 - deterministic analysis pipeline for note evidence extraction
@@ -169,7 +173,7 @@ Implemented now:
 MVP gaps:
 
 - locked-set reinference flow in the editor
-- editor-first polish for authoring new scales quickly
+- clearer inferred-vs-confirmed set state inside the editor
 - richer timing inference between sounds and sets
 - playback preview inside the review flow
 - polished final UI/UX

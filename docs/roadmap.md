@@ -20,6 +20,7 @@ Focus first on making new scales easy to create without audio analysis.
 That means:
 
 - fast manual editing in the editor
+- active-set piano-roll editing with configurable snap
 - partial-set inference
 - reinference with locked corrected sets
 - smooth save and playback handoff
@@ -50,6 +51,9 @@ That order is about active product focus, not importance in the overall architec
 Ship the MVP editor-first creation workflow.
 
 - create scales manually
+- place and drag notes in a piano roll
+- support non-destructive snap changes: 1/1, 1/2, 1/4
+- keep one active set in focus while other sets stay in a compact strip
 - seed one or more sets
 - infer the remaining sets
 - save the result
@@ -63,6 +67,7 @@ Make reinference practical and pleasant.
 - reinfer unresolved sets
 - keep inferred vs confirmed sets visually clear
 - keep playback preview close to editing
+- add explicit quantize actions only if needed, separate from snap switching
 
 ### Phase 3
 

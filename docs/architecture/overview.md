@@ -94,7 +94,7 @@ flowchart TD
     Model["model/<br/>shared domain models"]
     AnalyzerPkg["analyzer/<br/>audio -> note extraction facade + internal pipeline"]
     InferPkg["infer/<br/>draft inference from evidence or partial sets"]
-    EditorPkg["editor/<br/>pure editing operations"]
+    EditorPkg["editor/<br/>editing operations + piano-roll helpers"]
     PlayerPkg["player/<br/>PianoSoundPlayer, ScaleAutoPlayer, ScaleStepper"]
     StoragePkg["storage/<br/>Room + ScaleRepository"]
     AppPkg["app/<br/>activity, screens, viewmodels, nav, components, theme"]
@@ -108,7 +108,7 @@ flowchart TD
     Root --> ModelDir["model/<br/>shared domain models"]
     Root --> AnalyzerDir["analyzer/<br/>audio recognition"]
     Root --> InferDir["infer/<br/>inference component"]
-    Root --> EditorDir["editor/<br/>editing helpers"]
+    Root --> EditorDir["editor/<br/>editing helpers and grid projection"]
     Root --> PlayerDir["player/<br/>playback engine"]
     Root --> StorageDir["storage/<br/>persistence"]
     Root --> AppDir["app/<br/>shell: screens, viewmodels, navigation, UI"]
@@ -145,6 +145,6 @@ Component rules:
 - `analyzer.md`: audio-to-evidence library
 - `infer.md`: partial-scale and evidence-to-draft library
 - `player.md`: playback library
-- `editor.md`: manual editing library
+- `editor.md`: editor authoring and correction library
 - `storage.md`: persistence library
 - `app-shell.md`: Android orchestration layer
