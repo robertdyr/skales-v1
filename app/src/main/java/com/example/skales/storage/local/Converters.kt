@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.example.skales.model.ScaleSet
 import com.example.skales.model.ScaleSound
 import com.example.skales.model.ScaleSoundKind
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,6 +22,7 @@ class Converters {
                                 set.sounds.forEach { sound ->
                                     put(
                                         JSONObject().apply {
+                                            put("id", sound.id)
                                             put("kind", sound.kind.name)
                                             put("breakAfterBeats", sound.breakAfterBeats?.toDouble() ?: JSONObject.NULL)
                                             put(
@@ -55,6 +57,11 @@ class Converters {
                     val notesJson = soundJson.getJSONArray("notes")
 
                     ScaleSound(
+                        id = if (soundJson.has("id") && !soundJson.isNull("id")) {
+                            soundJson.getString("id")
+                        } else {
+                            UUID.randomUUID().toString()
+                        },
                         notes = List(notesJson.length(), notesJson::getInt),
                         kind = ScaleSoundKind.valueOf(soundJson.getString("kind")),
                         breakAfterBeats = soundJson.nullableFloat("breakAfterBeats"),

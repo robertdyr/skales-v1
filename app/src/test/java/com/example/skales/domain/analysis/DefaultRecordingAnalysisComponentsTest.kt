@@ -1,5 +1,13 @@
 package com.example.skales.analyzer
 
+import com.example.skales.infer.DefaultScaleCandidateRanker
+import com.example.skales.infer.DefaultScaleDraftBuilder
+import com.example.skales.infer.DefaultScaleInferEngine
+import com.example.skales.infer.ScaleCandidate
+import com.example.skales.infer.ScaleInferenceRequest
+import com.example.skales.model.ScaleSet
+import com.example.skales.model.ScaleSound
+import com.example.skales.model.ScaleSoundKind
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -67,7 +75,7 @@ class DefaultRecordingAnalysisComponentsTest {
     fun scaleCandidateRanker_prefersMajorPentatonicForMatchingPitchClasses() {
         val ranker = DefaultScaleCandidateRanker()
 
-        val candidates = ranker.rank(
+        val candidates = ranker.rankFromPhrases(
             listOf(
                 DetectedPhrase(
                     noteEvents = listOf(
@@ -95,7 +103,7 @@ class DefaultRecordingAnalysisComponentsTest {
     fun scaleDraftBuilder_buildsPlaybackSetsFromPhrases() {
         val builder = DefaultScaleDraftBuilder()
 
-        val draft = builder.build(
+        val draft = builder.buildFromPhrases(
             phrases = listOf(
                 DetectedPhrase(
                     noteEvents = listOf(event(midi = 60), event(midi = 62), event(midi = 64)),
@@ -115,6 +123,27 @@ class DefaultRecordingAnalysisComponentsTest {
         assertNotNull(draft)
         assertEquals("C major pentatonic", draft?.nameSuggestion)
         assertEquals(listOf(60, 62, 64), draft?.sets?.single()?.sounds?.map { it.notes.single() })
+    }
+
+    @Test
+    fun scaleInferEngine_preservesLockedSetsWhenReinferring() {
+        val inferEngine = DefaultScaleInferEngine()
+
+        val result = inferEngine.infer(
+            ScaleInferenceRequest(
+                currentSets = listOf(
+                    ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note))),
+                    ScaleSet(sounds = listOf(ScaleSound(notes = listOf(62), kind = ScaleSoundKind.Note))),
+                ),
+                lockedSetIndices = setOf(0, 1),
+                setCount = 7,
+            ),
+        )
+
+        assertNotNull(result.suggestedScale)
+        assertEquals(listOf(60), result.suggestedScale?.sets?.get(0)?.sounds?.single()?.notes)
+        assertEquals(listOf(62), result.suggestedScale?.sets?.get(1)?.sounds?.single()?.notes)
+        assertEquals(7, result.suggestedScale?.sets?.size)
     }
 
     @Test
@@ -138,8 +167,6 @@ class DefaultRecordingAnalysisComponentsTest {
             pitchFrameFilter = DefaultPitchFrameFilter(),
             noteEventReducer = DefaultNoteEventReducer(),
             phraseSegmenter = DefaultPhraseSegmenter(),
-            scaleCandidateRanker = DefaultScaleCandidateRanker(),
-            scaleDraftBuilder = DefaultScaleDraftBuilder(),
         )
 
         val result = pipeline.analyzeDetailed(
@@ -154,7 +181,7 @@ class DefaultRecordingAnalysisComponentsTest {
 
         assertEquals(9, result.pitchFrames.size)
         assertEquals(listOf(60, 62, 64), result.noteEvents.map { it.midi })
-        assertNotNull(result.suggestedScale)
+        assertEquals(1, result.phrases.size)
     }
 
     private fun frame(

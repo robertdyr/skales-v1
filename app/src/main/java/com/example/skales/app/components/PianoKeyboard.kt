@@ -89,8 +89,12 @@ private fun WhiteKey(
         modifier = Modifier
             .width(width)
             .height(220.dp)
-            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+            )
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.BottomCenter,
     ) {
@@ -98,6 +102,7 @@ private fun WhiteKey(
             text = whiteKeyLabel(note),
             modifier = Modifier.offset(y = (-12).dp),
             style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
     }
@@ -113,7 +118,7 @@ private fun BlackKey(
         modifier = modifier
             .width(width)
             .height(132.dp)
-            .background(Color(0xFF111111), RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
+            .background(Color(0xFF0C0C0D), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
             .clickable(onClick = onClick),
     )
 }

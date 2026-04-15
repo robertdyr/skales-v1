@@ -72,6 +72,30 @@ object ScaleEditorOps {
         }
     }
 
+    fun addNoteToSelectedSetAtColumn(sets: List<ScaleSet>, selectedSetIndex: Int, midi: Int, column: Int): List<ScaleSet> {
+        return mutateSelectedSet(sets, selectedSetIndex) { set ->
+            SetGridOps.addNoteAtColumn(set, midi, column)
+        }
+    }
+
+    fun moveNoteInSelectedSet(
+        sets: List<ScaleSet>,
+        selectedSetIndex: Int,
+        soundId: String,
+        midi: Int,
+        column: Int,
+    ): List<ScaleSet> {
+        return mutateSelectedSet(sets, selectedSetIndex) { set ->
+            SetGridOps.moveNote(set, soundId, midi, column)
+        }
+    }
+
+    fun removeNoteFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, soundId: String): List<ScaleSet> {
+        return mutateSelectedSet(sets, selectedSetIndex) { set ->
+            SetGridOps.removeNote(set, soundId)
+        }
+    }
+
     fun removeLastSoundFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
             if (set.sounds.isEmpty()) set else set.copy(sounds = set.sounds.dropLast(1))

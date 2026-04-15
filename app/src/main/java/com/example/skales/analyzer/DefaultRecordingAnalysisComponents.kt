@@ -1,9 +1,5 @@
 package com.example.skales.analyzer
 
-import com.example.skales.model.PlaybackTiming
-import com.example.skales.model.ScaleSet
-import com.example.skales.model.ScaleSound
-import com.example.skales.model.ScaleSoundKind
 import kotlin.math.abs
 
 interface NoiseGate {
@@ -154,86 +150,5 @@ class DefaultPhraseSegmenter(
             sawUp && sawDown && changedDirection && distinct.last() >= distinct.first() -> PhraseShape.DescendingThenAscending
             else -> PhraseShape.Mixed
         }
-    }
-}
-
-interface ScaleCandidateRanker {
-    fun rank(phrases: List<DetectedPhrase>): List<ScaleCandidate>
-}
-
-class DefaultScaleCandidateRanker : ScaleCandidateRanker {
-    override fun rank(phrases: List<DetectedPhrase>): List<ScaleCandidate> {
-        val pitchClasses = phrases
-            .flatMap { it.noteEvents }
-            .map { ((it.midi % 12) + 12) % 12 }
-            .distinct()
-
-        if (pitchClasses.isEmpty()) return emptyList()
-
-        return scaleTypes.flatMap { scaleType ->
-            (0..11).map { root ->
-                val expected = scaleType.intervals.map { (root + it) % 12 }.toSet()
-                val matches = pitchClasses.count { it in expected }
-                val extras = pitchClasses.count { it !in expected }
-                val confidence = (matches.toFloat() / pitchClasses.size) - (extras.toFloat() / (pitchClasses.size * 2f))
-                ScaleCandidate(
-                    rootPitchClass = root,
-                    scaleType = scaleType.name,
-                    confidence = confidence,
-                    reasons = listOf("matched $matches/${pitchClasses.size} pitch classes"),
-                )
-            }
-        }.sortedByDescending { it.confidence }
-    }
-
-    private data class ScaleTypeDefinition(
-        val name: String,
-        val intervals: List<Int>,
-    )
-
-    private companion object {
-        val scaleTypes = listOf(
-            ScaleTypeDefinition("major pentatonic", listOf(0, 2, 4, 7, 9)),
-            ScaleTypeDefinition("major", listOf(0, 2, 4, 5, 7, 9, 11)),
-            ScaleTypeDefinition("natural minor", listOf(0, 2, 3, 5, 7, 8, 10)),
-        )
-    }
-}
-
-interface ScaleDraftBuilder {
-    fun build(phrases: List<DetectedPhrase>, candidates: List<ScaleCandidate>): ScaleDraft?
-}
-
-class DefaultScaleDraftBuilder(
-    private val defaultBpm: Int = 92,
-) : ScaleDraftBuilder {
-    override fun build(phrases: List<DetectedPhrase>, candidates: List<ScaleCandidate>): ScaleDraft? {
-        if (phrases.isEmpty()) return null
-
-        val topCandidate = candidates.firstOrNull()
-        val nameSuggestion = if (topCandidate == null) {
-            "Imported scale"
-        } else {
-            "${pitchClassName(topCandidate.rootPitchClass)} ${topCandidate.scaleType}"
-        }
-
-        return ScaleDraft(
-            nameSuggestion = nameSuggestion,
-            sets = phrases.map { phrase ->
-                ScaleSet(
-                    sounds = phrase.noteEvents.map { event ->
-                        ScaleSound(
-                            notes = listOf(event.midi),
-                            kind = ScaleSoundKind.Note,
-                        )
-                    },
-                )
-            },
-            timing = PlaybackTiming(defaultBpm = defaultBpm),
-        )
-    }
-
-    private fun pitchClassName(rootPitchClass: Int): String {
-        return listOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")[rootPitchClass]
     }
 }

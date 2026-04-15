@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-The analyzer is the library that turns audio into a playable draft scale.
+The analyzer is the library that turns audio into structured note evidence.
 
 Low-level recognition details exist inside the analyzer for tuning, debugging, and tests, but they are not the main public contract.
 
@@ -10,29 +10,30 @@ Low-level recognition details exist inside the analyzer for tuning, debugging, a
 
 ```mermaid
 flowchart LR
-    Audio["audio file or recording"] --> Analyzer["Analyzer"] --> Draft["ScaleDraft"]
+    Audio["audio file or recording"] --> Analyzer["Analyzer"] --> Evidence["NoteExtractionResult"]
+    Evidence --> Infer["infer"] --> Draft["ScaleDraft"]
 ```
 
 Internally it may also produce diagnostics:
 
 ```mermaid
 flowchart LR
-    AudioDiag["audio"] --> AnalyzerDiag["analyzer"] --> DraftDiag["draftScale"]
+    AudioDiag["audio"] --> AnalyzerDiag["analyzer"] --> EvidenceDiag["note evidence"]
+    EvidenceDiag --> InferDiag["scale infer engine"] --> DraftDiag["draftScale"]
     AnalyzerDiag -.-> Notes["detected notes"]
-    AnalyzerDiag -.-> Candidates["candidates"]
     AnalyzerDiag -.-> Phrases["phrase info"]
-    AnalyzerDiag -.-> Timing["optional timing inference"]
     AnalyzerDiag -.-> Diagnostics["internal diagnostics"]
+    InferDiag -.-> Candidates["candidates"]
+    InferDiag -.-> Timing["optional timing inference"]
 ```
 
 ## Internal Shape
 
 ```mermaid
 flowchart LR
-    Input["input"] --> Recognizer["recognizer"] --> Contextualizer["contextualizer"] --> DraftBuilder["draft-builder"]
+    Input["input"] --> Recognizer["recognizer"] --> Contextualizer["contextualizer"]
     Recognizer -. evidence .-> DiagnosticsA["diagnostics"]
     Contextualizer -. evidence .-> DiagnosticsA
-    DraftBuilder -. evidence .-> DiagnosticsA
 ```
 
 ### `input`
@@ -77,25 +78,18 @@ interface NoteExtractor {
 Owns:
 
 - phrase segmentation
-- candidate scale ranking
 - interpretation of detected notes as musical structure
-- later timing inference between sounds and sets
-- optional LLM reasoning over structured evidence
+- optional phrase-level cleanup before inference handoff
 
 Current examples:
 
 - `DefaultPhraseSegmenter`
-- `DefaultScaleCandidateRanker`
 
-Recommended future abstractions:
+Recommended future abstraction:
 
 ```kotlin
 interface ScaleContextualizer {
-    fun contextualize(extraction: NoteExtractionResult): ContextualizedScaleEvidence
-}
-
-interface TimingInferencer {
-    fun infer(extraction: NoteExtractionResult): InferredTiming
+    fun contextualize(extraction: NoteExtractionResult): NoteExtractionResult
 }
 ```
 
@@ -103,33 +97,23 @@ Important rule:
 
 - if an LLM is used, it belongs after note extraction, not instead of note extraction
 
-### `draft-builder`
-
-Owns:
-
-- conversion from interpreted evidence into `ScaleDraft`
-
-Current example:
-
-- `DefaultScaleDraftBuilder`
-
 ## Public API Rule
 
 The app should depend on the analyzer like this:
 
 ```kotlin
 interface Analyzer {
-    suspend fun analyze(recording: AudioRecording): ScaleDraft?
+    suspend fun analyze(recording: AudioRecording): NoteExtractionResult
 }
 ```
 
-If the app later wants to show debug evidence, that should come from a separate diagnostics path, not by making pitch frames and note events the primary app-facing API.
+The app should pass that evidence into `infer` when it wants a draft.
 
 ## Current Runtime Flow
 
 ```mermaid
 flowchart LR
-    PickedFile["picked file"] --> Importer["AudioFileImporter"] --> Recording["AudioRecording"] --> Pipeline["RecordingAnalysisPipeline"] --> Draft2["ScaleDraft"] --> Review["review screen"]
+    PickedFile["picked file"] --> Importer["AudioFileImporter"] --> Recording["AudioRecording"] --> Pipeline["RecordingAnalysisPipeline"] --> Evidence2["NoteExtractionResult"] --> Infer2["infer"] --> Draft2["ScaleDraft"] --> Review["review screen"]
 ```
 
 ## What The Analyzer Must Not Know
@@ -138,6 +122,7 @@ flowchart LR
 - navigation routes
 - final Room persistence details
 - playback UI state
+- editor-assisted reinference policy
 
 ## Good Future Direction
 
@@ -148,8 +133,6 @@ flowchart TD
     Pipeline["RecordingAnalysisPipeline"] --> Facade["Analyzer facade"]
     Facade --> NoteExtractor["NoteExtractor"]
     Facade --> Contextualizer2["ScaleContextualizer"]
-    Facade --> TimingInferencer["TimingInferencer"]
-    Facade --> DraftBuilder2["ScaleDraftBuilder"]
 ```
 
 ## Diagnostics Rule
@@ -157,16 +140,15 @@ flowchart TD
 - `PitchFrame`
 - `DetectedNoteEvent`
 - `DetectedPhrase`
-- `ScaleCandidate`
 
 These are analyzer internals.
-They are useful for tests and tuning, but they should not leak into the normal app contract.
+They are useful for tests and tuning, but they should not leak into editor or player code directly.
 
 ## Testing Strategy
 
 ```mermaid
 flowchart TD
     AudioFixture1["audio fixture"] --> RecognizerTest["recognizer"] --> NoteAssertions["note assertions"]
-    NoteFixture["note fixture"] --> ContextualizerTest["contextualizer"] --> PhraseAssertions["phrase / candidate assertions"]
-    AudioFixture2["audio fixture"] --> AnalyzerTest["analyzer"] --> DraftAssertions["draft assertions"]
+    NoteFixture["note fixture"] --> ContextualizerTest["contextualizer"] --> PhraseAssertions["phrase assertions"]
+    AudioFixture2["audio fixture"] --> AnalyzerTest["analyzer"] --> EvidenceAssertions["evidence assertions"]
 ```

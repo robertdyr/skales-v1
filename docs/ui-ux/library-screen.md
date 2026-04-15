@@ -29,7 +29,8 @@ It should feel simple, calm, and decisive.
 1. existing saved scales
 2. create new scale
 3. import from audio
-4. debug access should remain secondary
+4. continue an inference/correction flow when present
+5. debug access should remain secondary
 
 ## Empty State
 
@@ -48,3 +49,4 @@ It should feel simple, calm, and decisive.
 - edit stays available but secondary
 - delete requires confirmation
 - import should be visible without competing with the main list
+- if draft or reinference flows are added later, the handoff into review/editor should feel like a continuation of creation, not a separate tool

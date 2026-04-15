@@ -8,7 +8,7 @@ This is where MVVM lives.
 
 - screens are the Views
 - screen `ViewModel`s hold UI state and handle user actions
-- the components (`analyzer`, `editor`, `player`, `storage`) are dependencies used by those `ViewModel`s
+- the components (`analyzer`, `infer`, `editor`, `player`, `storage`) are dependencies used by those `ViewModel`s
 
 ## External Contract
 
@@ -39,6 +39,7 @@ flowchart LR
 
 - navigation between library, editor, import, review, and player
 - dependency construction and wiring
+- orchestration between analyzer evidence and scale inference
 - file picker integration
 - permission and lifecycle handling
 - screen-level state ownership through `ViewModel`s
@@ -59,5 +60,6 @@ Examples:
 ## What App Shell Should Avoid
 
 - embedding analyzer logic directly in screens
+- embedding scale inference logic directly in screens
 - embedding playback logic directly in screens
 - storing business rules that belong in component libraries

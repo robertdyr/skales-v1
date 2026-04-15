@@ -1,8 +1,5 @@
 package com.example.skales.analyzer
 
-import com.example.skales.model.PlaybackTiming
-import com.example.skales.model.ScaleSet
-
 data class AudioRecording(
     val id: String,
     val filePath: String,
@@ -40,24 +37,9 @@ data class DetectedPhrase(
     val shape: PhraseShape,
 )
 
-data class ScaleCandidate(
-    val rootPitchClass: Int,
-    val scaleType: String,
-    val confidence: Float,
-    val reasons: List<String>,
-)
-
-data class ScaleDraft(
-    val nameSuggestion: String,
-    val sets: List<ScaleSet>,
-    val timing: PlaybackTiming,
-)
-
-data class RecordingAnalysisResult(
+data class NoteExtractionResult(
     val pitchFrames: List<DetectedPitchFrame>,
     val filteredPitchFrames: List<DetectedPitchFrame>,
     val noteEvents: List<DetectedNoteEvent>,
     val phrases: List<DetectedPhrase>,
-    val candidates: List<ScaleCandidate>,
-    val suggestedScale: ScaleDraft?,
 )

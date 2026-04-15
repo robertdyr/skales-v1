@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This flow takes the user from audio file to a reviewable draft scale.
+This flow takes the user from audio file to note evidence, an inferred draft, and then a reviewable scale.
 
 ## Flow Shape
 
 ```text
-Import audio -> Analyze -> Review -> Save
-                            \-> Edit
+Import audio -> Analyze audio -> Infer draft -> Review -> Save
+                                             \-> Edit -> Reinfer -> Review
 ```
 
 ## Import Screen Layout
@@ -32,6 +32,7 @@ Import audio -> Analyze -> Review -> Save
 ```text
 +---------------- summary ----------------+
 | source file                             |
+| evidence summary                        |
 | suggested draft name                    |
 | draft set count / bpm                   |
 +----------------------------------------+
@@ -56,7 +57,8 @@ Import audio -> Analyze -> Review -> Save
 1. user should understand what file was analyzed
 2. user should see the proposed result quickly
 3. user should have enough evidence to trust or reject it
-4. save should be easy when the result looks correct
+4. reinference should be an obvious correction path when only part of the draft is wrong
+5. save should be easy when the result looks correct
 
 ## States
 
@@ -69,6 +71,7 @@ Import audio -> Analyze -> Review -> Save
 
 - summary first
 - evidence second
+- reinfer/edit path visible before save
 - save action fixed and obvious
 
 ### Failure
@@ -80,4 +83,5 @@ Import audio -> Analyze -> Review -> Save
 
 - preview playback of the draft
 - open in editor for correction
+- infer missing sets from one or more corrected editor sets
 - timing visualization between detected sounds

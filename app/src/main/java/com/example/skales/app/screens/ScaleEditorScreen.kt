@@ -1,10 +1,9 @@
 package com.example.skales.app.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,26 +11,40 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.skales.player.PlaybackCursor
-import com.example.skales.model.ScaleSet
-import com.example.skales.model.ScaleSoundKind
 import com.example.skales.app.components.PianoKeyboard
+import com.example.skales.app.components.SetPianoRollEditor
+import com.example.skales.app.components.SkalesBackground
+import com.example.skales.app.components.SkalesCircleButton
+import com.example.skales.app.components.SkalesMetric
+import com.example.skales.app.components.SkalesPanel
+import com.example.skales.app.components.SkalesPill
+import com.example.skales.app.components.SkalesPrimaryButton
+import com.example.skales.app.components.SkalesSecondaryButton
+import com.example.skales.app.components.SkalesSectionHeader
+import com.example.skales.app.components.SkalesWordmark
 import com.example.skales.app.viewmodel.ScaleEditorViewModel
 import com.example.skales.editor.ScaleEditorOps
+import com.example.skales.editor.SetGridOps
+import com.example.skales.model.ScaleSet
+import com.example.skales.model.ScaleSoundKind
+import com.example.skales.player.PlaybackCursor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,105 +55,187 @@ fun ScaleEditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text(if (uiState.isEditing) "Edit scale" else "New scale") },
+                navigationIcon = {
+                    SkalesSecondaryButton(text = "Back", onClick = onNavigateBack)
+                },
             )
         },
     ) { innerPadding ->
-        Column(
+        if (!uiState.isLoaded) {
+            SkalesBackground(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    SkalesPanel { Text("Loading...") }
+                }
+            }
+            return@Scaffold
+        }
+
+        SkalesBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OutlinedTextField(
-                value = uiState.name,
-                onValueChange = viewModel::updateName,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Scale name") },
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SkalesPanel {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        SkalesWordmark(compact = true)
+                        SkalesPill(text = if (uiState.isEditing) "Editing" else "New scale", highlighted = true)
+                    }
+                }
 
-            Surface(
-                tonalElevation = 2.dp,
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(text = "Playback", style = MaterialTheme.typography.titleMedium)
-                    SettingStepper(
-                        label = "Tempo",
-                        value = "${uiState.bpm} BPM",
-                        onDecrease = viewModel::decreaseBpm,
-                        onIncrease = viewModel::increaseBpm,
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Identity",
+                        supporting = "Give the scale a clear practice label before building its sets.",
                     )
-                    Text(
-                        text = playbackCursorLabel(uiState.playbackCursor),
-                        style = MaterialTheme.typography.bodySmall,
+                    OutlinedTextField(
+                        value = uiState.name,
+                        onValueChange = viewModel::updateName,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Scale name") },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                        ),
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = viewModel::stepScale,
-                            enabled = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                        ) {
-                            Text("Step")
+                }
+
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Playback preview",
+                        supporting = playbackCursorLabel(uiState.playbackCursor),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SkalesMetric(label = "Tempo", value = "${uiState.bpm} BPM")
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SkalesCircleButton(label = "-", onClick = viewModel::decreaseBpm, size = 48.dp)
+                            SkalesCircleButton(label = "+", onClick = viewModel::increaseBpm, size = 48.dp)
                         }
-                        TextButton(
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        SkalesPrimaryButton(
+                            text = if (uiState.isPlaying) "Playing" else "Play",
                             onClick = viewModel::playScale,
                             enabled = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                        ) {
-                            Text(if (uiState.isPlaying) "Playing..." else "Play")
-                        }
-                        TextButton(onClick = viewModel::stopScale, enabled = uiState.isPlaying) {
-                            Text("Stop")
-                        }
-                        TextButton(onClick = viewModel::resetPlaybackCursor) {
-                            Text("Reset")
+                        )
+                        SkalesSecondaryButton(
+                            text = "Step",
+                            onClick = viewModel::stepScale,
+                            enabled = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SkalesSecondaryButton(text = "Reset", onClick = viewModel::resetPlaybackCursor)
+                        SkalesSecondaryButton(
+                            text = "Stop",
+                            onClick = viewModel::stopScale,
+                            enabled = uiState.isPlaying,
+                        )
+                    }
+                }
+
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Set strip",
+                        supporting = "Only the selected set opens in the piano roll, so dragging notes never conflicts with other sets.",
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        uiState.sets.forEachIndexed { index, set ->
+                            SetSelectorPill(
+                                setIndex = index,
+                                set = set,
+                                isSelected = index == uiState.selectedSetIndex,
+                                onSelect = { viewModel.selectSet(index) },
+                            )
                         }
                     }
                 }
-            }
 
-            PianoKeyboard(
-                onNotePressed = viewModel::onNotePressed,
-                modifier = Modifier.fillMaxWidth(),
-            )
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Piano roll",
+                        supporting = "Tap a key to arm a pitch, tap empty grid space to place it, and drag blocks to change pitch or spacing.",
+                    )
+                    val selectedSet = uiState.selectedSet ?: ScaleSet(sounds = emptyList())
+                    SetPianoRollEditor(
+                        grid = SetGridOps.toGrid(selectedSet),
+                        armedMidi = uiState.armedMidi,
+                        onCellTap = viewModel::addArmedOrDirectNoteToSelectedSet,
+                        onNoteMove = viewModel::moveNoteInSelectedSet,
+                        onDeleteNote = viewModel::removeNoteFromSelectedSet,
+                    )
+                }
 
-            Surface(
-                tonalElevation = 2.dp,
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(text = "Sets", style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = viewModel::addSet) {
-                            Text("New set")
-                        }
-                        TextButton(onClick = viewModel::addChordCueToSelectedSet) {
-                            Text("Add chord cue")
-                        }
-                        TextButton(
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Keyboard",
+                        supporting = "Keyboard taps preview and arm a pitch for placement in the piano roll.",
+                    )
+                    PianoKeyboard(
+                        onNotePressed = viewModel::onNotePressed,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                SkalesPanel {
+                    SkalesSectionHeader(
+                        title = "Sets",
+                        supporting = "Keep one set selected while adding notes or cue sounds.",
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        EditorActionChip(text = "New set", onClick = viewModel::addSet)
+                        EditorActionChip(text = "Add chord cue", onClick = viewModel::addChordCueToSelectedSet)
+                        EditorActionChip(
+                            text = "Remove cue",
                             onClick = viewModel::removeChordCueFromSelectedSet,
                             enabled = uiState.selectedSet?.sounds?.firstOrNull()?.kind == ScaleSoundKind.Cue,
-                        ) {
-                            Text("Remove chord cue")
-                        }
-                        TextButton(onClick = viewModel::deleteSelectedSet, enabled = uiState.sets.isNotEmpty()) {
-                            Text("Delete set")
-                        }
+                        )
+                        EditorActionChip(
+                            text = "Delete set",
+                            onClick = viewModel::deleteSelectedSet,
+                            enabled = uiState.sets.isNotEmpty(),
+                        )
                     }
                     if (uiState.sets.isEmpty()) {
                         Text(
                             text = "Create a set, then tap notes on the keyboard.",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Column(
@@ -159,75 +254,29 @@ fun ScaleEditorScreen(
                             }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = viewModel::removeLastSoundFromSelectedSet,
-                            enabled = uiState.selectedSet?.sounds?.isNotEmpty() == true,
-                        ) {
-                            Text("Remove last sound")
-                        }
-                        TextButton(
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        EditorActionChip(
+                            text = "Clear selected set",
                             onClick = viewModel::clearSelectedSet,
                             enabled = uiState.selectedSet?.sounds?.isNotEmpty() == true,
-                        ) {
-                            Text("Clear selected set")
-                        }
+                        )
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                TextButton(onClick = onNavigateBack) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = { viewModel.saveScale(onNavigateBack) },
-                    enabled = uiState.name.isNotBlank() && uiState.sets.any { it.sounds.isNotEmpty() },
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                ) {
-                    Text("Save")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SetCard(
-    setIndex: Int,
-    set: ScaleSet,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-) {
-    Surface(
-        onClick = onSelect,
-        tonalElevation = if (isSelected) 4.dp else 1.dp,
-        shape = MaterialTheme.shapes.large,
-        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "Set ${setIndex + 1}${set.breakAfterBeats?.let { "  (+${it} beat break)" } ?: ""}",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            if (set.sounds.isEmpty()) {
-                Text(text = "Empty set", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    set.sounds.forEachIndexed { soundIndex, sound ->
-                        val prefix = if (sound.kind == ScaleSoundKind.Cue) "C" else "N"
-                        val breakLabel = sound.breakAfterBeats?.let { "  -$it" } ?: ""
-                        AssistChip(
-                            onClick = onSelect,
-                            label = {
-                                Text("${prefix}${soundIndex + 1}: ${ScaleEditorOps.labelForSound(sound)}$breakLabel")
-                            },
+                SkalesPanel {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SkalesSecondaryButton(text = "Cancel", onClick = onNavigateBack)
+                        SkalesPrimaryButton(
+                            text = "Save scale",
+                            onClick = { viewModel.saveScale(onNavigateBack) },
+                            enabled = uiState.name.isNotBlank() && uiState.sets.any { it.sounds.isNotEmpty() },
                         )
                     }
                 }
@@ -237,29 +286,113 @@ private fun SetCard(
 }
 
 @Composable
-private fun SettingStepper(
-    label: String,
-    value: String,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit,
+private fun SetSelectorPill(
+    setIndex: Int,
+    set: ScaleSet,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column {
-            Text(text = label, style = MaterialTheme.typography.bodyMedium)
-            Text(text = value, style = MaterialTheme.typography.titleMedium)
+    val noteCount = set.sounds.count { it.kind == ScaleSoundKind.Note }
+    val cueCount = set.sounds.count { it.kind == ScaleSoundKind.Cue }
+    AssistChip(
+        onClick = onSelect,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
+        ),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            labelColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        label = {
+            Text("Set ${setIndex + 1}  $noteCount notes${if (cueCount > 0) "  $cueCount cue" else ""}")
+        },
+    )
+}
+
+@Composable
+private fun SetCard(
+    setIndex: Int,
+    set: ScaleSet,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+) {
+    SkalesPanel(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Set ${setIndex + 1}${set.breakAfterBeats?.let { "  (+${it} beat break)" } ?: ""}",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            SkalesPill(text = if (isSelected) "Selected" else "Tap to select", highlighted = isSelected)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onDecrease) {
-                Text("-")
-            }
-            TextButton(onClick = onIncrease) {
-                Text("+")
+        EditorActionChip(
+            text = if (isSelected) "Selected" else "Select set",
+            onClick = onSelect,
+            enabled = !isSelected,
+        )
+        if (set.sounds.isEmpty()) {
+            Text(
+                text = "Empty set",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                set.sounds.forEachIndexed { soundIndex, sound ->
+                    val prefix = if (sound.kind == ScaleSoundKind.Cue) "C" else "N"
+                    AssistChip(
+                        onClick = onSelect,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
+                            },
+                        ),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                            },
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        label = {
+                            Text("${prefix}${soundIndex + 1}: ${ScaleEditorOps.labelForSound(sound)}")
+                        },
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun EditorActionChip(
+    text: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    AssistChip(
+        onClick = onClick,
+        enabled = enabled,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
+        ),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            labelColor = MaterialTheme.colorScheme.onSurface,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+            disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        ),
+        label = { Text(text) },
+    )
 }
 
 private fun playbackCursorLabel(cursor: PlaybackCursor): String {

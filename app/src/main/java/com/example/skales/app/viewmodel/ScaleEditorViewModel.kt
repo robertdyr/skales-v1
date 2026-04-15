@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.skales.editor.ScaleEditorOps
+import com.example.skales.editor.SetGridOps
 import com.example.skales.model.ScaleSet
 import com.example.skales.player.PianoSoundPlayer
 import com.example.skales.player.PlaybackCursor
@@ -30,6 +31,7 @@ data class ScaleEditorUiState(
     val name: String = "",
     val sets: List<ScaleSet> = ScaleEditorOps.defaultSets(),
     val selectedSetIndex: Int = 0,
+    val armedMidi: Int? = null,
     val bpm: Int = DefaultBpm,
     val playbackCursor: PlaybackCursor = PlaybackCursor(),
     val isEditing: Boolean = false,
@@ -117,8 +119,40 @@ class ScaleEditorViewModel(
         viewModelScope.launch {
             pianoSoundPlayer.playSound(listOf(midi))
         }
+        stopScale()
+        _uiState.update { state ->
+            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
+                sets = state.sets,
+                selectedSetIndex = state.selectedSetIndex,
+                midi = midi,
+                column = SetGridOps.nextFreeColumn(state.selectedSet ?: ScaleSet(sounds = emptyList())),
+            )
+            val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
+            state.copy(
+                sets = normalizedSets,
+                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
+                playbackCursor = PlaybackCursor(),
+                armedMidi = midi,
+            )
+        }
+    }
+
+    fun addArmedOrDirectNoteToSelectedSet(column: Int, midi: Int) {
+        val effectiveMidi = uiState.value.armedMidi ?: midi
         mutateSelectedSets { sets, selectedSetIndex ->
-            ScaleEditorOps.addNoteToSelectedSet(sets, selectedSetIndex, midi)
+            ScaleEditorOps.addNoteToSelectedSetAtColumn(sets, selectedSetIndex, effectiveMidi, column)
+        }
+    }
+
+    fun moveNoteInSelectedSet(soundId: String, midi: Int, column: Int) {
+        mutateSelectedSets { sets, selectedSetIndex ->
+            ScaleEditorOps.moveNoteInSelectedSet(sets, selectedSetIndex, soundId, midi, column)
+        }
+    }
+
+    fun removeNoteFromSelectedSet(soundId: String) {
+        mutateSelectedSets { sets, selectedSetIndex ->
+            ScaleEditorOps.removeNoteFromSelectedSet(sets, selectedSetIndex, soundId)
         }
     }
 
