@@ -30,9 +30,9 @@ It should feel functional, structured, and easy to understand even when a scale 
 | tabs: Playback | Keyboard | Sets       |
 | Playback: cursor + bpm +/- + compact   |
 | transport controls                     |
-| Keyboard: sticky keyboard note entry   |
-| Sets: active set strip + set actions   |
-| + selected set detail card             |
+| Keyboard: append-at-end note entry     |
+| Sets: active set strip + selected set  |
+| detail card + set actions              |
 | attached to bottom, not floating card  |
 +----------------------------------------+
 ```
@@ -91,9 +91,11 @@ The playback panel in the editor dock should stay compact and playback-first.
 Set management belongs in the editor dock beside playback and keyboard.
 
 - provide one dedicated `Sets` tab in the dock rather than duplicate set sections in the main content
-- keep the selected set obvious from the dock's set strip and detail card
+- keep the selected set obvious from the highlighted set strip; do not duplicate selection state with a second badge inside the detail card
 - keep `New set`, cue actions, delete, and clear close to set selection
 - let the piano roll remain the center of the screen while sets work alongside it
+- keep the selected-set detail card at a stable height so the dock does not jump when switching between empty and non-empty sets
+- allow long note/cue summaries and action rows to scroll horizontally rather than clipping
 
 ## Snap Rule
 
