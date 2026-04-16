@@ -1,4 +1,5 @@
 ---
+name: compile-project
 description: Use the Windows Android toolchain from WSL or Linux-based OpenCode sessions by invoking gradlew.bat through cmd.exe with Android Studio's bundled JBR
 ---
 
