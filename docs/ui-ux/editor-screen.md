@@ -17,15 +17,10 @@ It should feel functional, structured, and easy to understand even when a scale 
 | scale name                              |
 +----------------------------------------+
 
-+--------------- playback ----------------+
-| tempo controls                          |
-| step / play / stop / reset              |
-| cursor status                           |
-+----------------------------------------+
-
 +---------------- set strip --------------+
 | Set 1 | Set 2 | Set 3 | ...             |
 | one active set selected                 |
+| new set / cue / delete near strip       |
 +----------------------------------------+
 
 +-------------- piano roll ---------------+
@@ -41,13 +36,15 @@ It should feel functional, structured, and easy to understand even when a scale 
 +----------------------------------------+
 
 +---------------- actions ----------------+
-| new set / add cue / delete set          |
 | infer missing / lock confirmed sets     |
 | clear selected set / save               |
 +----------------------------------------+
 
-+--------------- footer ------------------+
-| Cancel                     Save         |
++---------- sticky playback dock ---------+
+| tabs: Playback | Keyboard              |
+| Playback: cursor + bpm +/- + transport |
+| Keyboard: sticky keyboard note entry   |
+| attached to bottom, not floating card  |
 +----------------------------------------+
 ```
 
@@ -56,8 +53,8 @@ It should feel functional, structured, and easy to understand even when a scale 
 1. always show which set is selected
 2. keep note spacing visible and editable
 3. keep note entry fast
-4. let preview playback happen without leaving the editor
-5. make reinference available without overwhelming manual editing
+4. keep playback controls reachable while editing and scrolling
+5. keep keyboard note entry reachable while editing and scrolling
 6. avoid accidental cross-set edits
 7. make snap changes safe and predictable
 
@@ -69,6 +66,7 @@ Use one piano roll for the active set.
 - other sets appear as compact previews, not as editable overlapping lanes
 - moving content across sets should require an explicit action, not a normal drag
 - changing snap changes the grid, not the saved timing
+- set cards in the lower section should be fully tappable for selection
 
 ## Snap Rule
 

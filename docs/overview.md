@@ -165,6 +165,7 @@ Implemented now:
 
 - scale library screen
 - manual editor with selected-set piano roll
+- sticky bottom playback dock in editor
 - scale player
 - local persistence with Room
 - deterministic analysis pipeline for note evidence extraction

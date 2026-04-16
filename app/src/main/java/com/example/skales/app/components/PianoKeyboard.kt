@@ -42,6 +42,8 @@ private val PianoWhiteKeyLabelColor = Color(0xFF5A5348)
 fun PianoKeyboard(
     onNotePressed: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    whiteKeyHeight: Dp = 220.dp,
+    blackKeyHeight: Dp = 132.dp,
 ) {
     val allKeys = (KeyboardStartMidi..KeyboardEndMidi).map { midi -> PianoKey(midi = midi, note = Note.fromMidi(midi)) }
     val whiteKeys = allKeys.filterNot { it.note.isBlackKey }
@@ -64,6 +66,7 @@ fun PianoKeyboard(
                     WhiteKey(
                         note = key.note,
                         width = WhiteKeyWidth,
+                        height = whiteKeyHeight,
                         onClick = { onNotePressed(key.midi) },
                     )
                 }
@@ -73,6 +76,7 @@ fun PianoKeyboard(
                 val offset = blackKeyOffset(key.midi, whiteKeys, WhiteKeyWidth, BlackKeyWidth)
                 BlackKey(
                     width = BlackKeyWidth,
+                    height = blackKeyHeight,
                     modifier = Modifier.offset(x = offset),
                     onClick = { onNotePressed(key.midi) },
                 )
@@ -85,13 +89,14 @@ fun PianoKeyboard(
 private fun WhiteKey(
     note: Note,
     width: Dp,
+    height: Dp,
     onClick: () -> Unit,
 ) {
     val keyShape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
     Box(
         modifier = Modifier
             .width(width)
-            .height(220.dp)
+            .height(height)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
@@ -114,13 +119,14 @@ private fun WhiteKey(
 @Composable
 private fun BlackKey(
     width: Dp,
+    height: Dp,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = modifier
             .width(width)
-            .height(132.dp)
+            .height(height)
             .background(Color(0xFF0C0C0D), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
             .clickable(onClick = onClick),
     )
