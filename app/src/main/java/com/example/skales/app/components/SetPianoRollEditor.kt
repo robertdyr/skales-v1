@@ -53,7 +53,6 @@ private const val VisibleRowCount = 18
 @Composable
 fun SetPianoRollEditor(
     grid: SetGrid,
-    armedMidi: Int?,
     onCellTap: (column: Int, midi: Int) -> Unit,
     onNoteMove: (soundId: String, midi: Int, column: Int) -> Unit,
     onDeleteNote: (soundId: String) -> Unit,
@@ -71,13 +70,13 @@ fun SetPianoRollEditor(
     val strongGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f)
     val softGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
     val rowGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
-    val focusedMidi = remember(grid.notes, armedMidi, grid.minMidi, grid.maxMidi) {
+    val focusedMidi = remember(grid.notes, grid.minMidi, grid.maxMidi) {
         val lowestNote = grid.notes.minOfOrNull { it.midi }
         val highestNote = grid.notes.maxOfOrNull { it.midi }
         val midpoint = if (lowestNote != null && highestNote != null) {
             (lowestNote + highestNote) / 2
         } else {
-            armedMidi ?: DefaultFocusMidi
+            DefaultFocusMidi
         }
         midpoint.coerceIn(grid.minMidi, grid.maxMidi)
     }
@@ -99,7 +98,7 @@ fun SetPianoRollEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = armedMidi?.let { "Armed: ${noteLabel(it)}" } ?: "Tap a key, or tap empty grid space to add a note.",
+                text = "Tap empty grid space to place a note at that pitch. Keyboard taps append at the end.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -153,7 +152,7 @@ fun SetPianoRollEditor(
                         .height(rollHeight)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f))
                         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f), RoundedCornerShape(16.dp))
-                        .pointerInput(grid, armedMidi) {
+                        .pointerInput(grid) {
                             detectTapGestures(
                                 onTap = { start ->
                                     val column = (start.x / CellWidth.toPx()).toInt().coerceIn(0, grid.columnCount - 1)
@@ -161,7 +160,7 @@ fun SetPianoRollEditor(
                                     val midi = grid.maxMidi - row
                                     val hit = findHitNote(start, grid)
                                     if (hit == null) {
-                                        onCellTap(column, armedMidi ?: midi)
+                                        onCellTap(column, midi)
                                     } else {
                                         selectedSoundId = hit.soundId
                                     }

@@ -31,7 +31,6 @@ data class ScaleEditorUiState(
     val name: String = "",
     val sets: List<ScaleSet> = ScaleEditorOps.defaultSets(),
     val selectedSetIndex: Int = 0,
-    val armedMidi: Int? = null,
     val snapStepBeats: Float = SetGridOps.DefaultStepBeats,
     val bpm: Int = DefaultBpm,
     val playbackCursor: PlaybackCursor = PlaybackCursor(),
@@ -141,15 +140,26 @@ class ScaleEditorViewModel(
                 sets = normalizedSets,
                 selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
                 playbackCursor = PlaybackCursor(),
-                armedMidi = midi,
             )
         }
     }
 
-    fun addArmedOrDirectNoteToSelectedSet(column: Int, midi: Int) {
-        val effectiveMidi = uiState.value.armedMidi ?: midi
-        mutateSelectedSets { sets, selectedSetIndex ->
-            ScaleEditorOps.addNoteToSelectedSetAtColumn(sets, selectedSetIndex, effectiveMidi, column, uiState.value.snapStepBeats)
+    fun addNoteToSelectedSetAtPosition(column: Int, midi: Int) {
+        stopScale()
+        _uiState.update { state ->
+            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
+                state.sets,
+                state.selectedSetIndex,
+                midi,
+                column,
+                state.snapStepBeats,
+            )
+            val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
+            state.copy(
+                sets = normalizedSets,
+                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
+                playbackCursor = PlaybackCursor(),
+            )
         }
     }
 

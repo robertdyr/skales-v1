@@ -17,12 +17,6 @@ It should feel functional, structured, and easy to understand even when a scale 
 | scale name                              |
 +----------------------------------------+
 
-+---------------- set strip --------------+
-| Set 1 | Set 2 | Set 3 | ...             |
-| one active set selected                 |
-| new set / cue / delete near strip       |
-+----------------------------------------+
-
 +-------------- piano roll ---------------+
 | fixed-height viewport + time grid       |
 | draggable note blocks                   |
@@ -32,15 +26,13 @@ It should feel functional, structured, and easy to understand even when a scale 
 | selected-set editing only               |
 +----------------------------------------+
 
-+---------------- set details ------------+
-| selected set preview / clear selected   |
-+----------------------------------------+
-
 +---------- sticky playback dock ---------+
-| tabs: Playback | Keyboard              |
+| tabs: Playback | Keyboard | Sets       |
 | Playback: cursor + bpm +/- + compact   |
 | transport controls                     |
 | Keyboard: sticky keyboard note entry   |
+| Sets: active set strip + set actions   |
+| + selected set detail card             |
 | attached to bottom, not floating card  |
 +----------------------------------------+
 ```
@@ -51,7 +43,7 @@ It should feel functional, structured, and easy to understand even when a scale 
 2. keep note spacing visible and editable
 3. keep note entry fast
 4. keep playback controls reachable while editing and scrolling
-5. keep keyboard note entry reachable while editing and scrolling
+5. keep keyboard and set controls reachable while editing and scrolling
 6. avoid accidental cross-set edits
 7. make snap changes safe and predictable
 8. keep save reachable without forcing a scroll to the bottom
@@ -60,11 +52,13 @@ It should feel functional, structured, and easy to understand even when a scale 
 
 Use one piano roll for the active set.
 
+- tapping empty piano-roll space places a note at the tapped pitch and time column
+- keyboard entry appends a note at the end of the selected set
 - dragging a note edits only the selected set
 - other sets appear as compact previews, not as editable overlapping lanes
 - moving content across sets should require an explicit action, not a normal drag
 - changing snap changes the grid, not the saved timing
-- set cards in the lower section should be fully tappable for selection
+- set selection and set actions live in the dock rather than duplicating set controls in the main scroll content
 
 ## Piano Roll Viewport Rule
 
@@ -91,6 +85,15 @@ The playback panel in the editor dock should stay compact and playback-first.
 - show stop only while playing by swapping the primary control state
 - keep secondary playback actions like `Step` and `Reset` lighter than the primary control
 - preserve breathing room through layout balance before reducing dock padding
+
+## Sets Panel Rule
+
+Set management belongs in the editor dock beside playback and keyboard.
+
+- provide one dedicated `Sets` tab in the dock rather than duplicate set sections in the main content
+- keep the selected set obvious from the dock's set strip and detail card
+- keep `New set`, cue actions, delete, and clear close to set selection
+- let the piano roll remain the center of the screen while sets work alongside it
 
 ## Snap Rule
 

@@ -29,7 +29,7 @@ Cross-screen loop:
 - keep correction simpler than inference internals
 - for multi-set editing, prefer one active-set piano roll over one giant shared timeline
 - treat snap size as a safe editor tool, not as an implicit quantize command
-- keep editor playback and keyboard entry in a bottom-attached dock so core editing controls stay reachable
+- keep editor playback, keyboard entry, and set management in a bottom-attached dock so core editing controls stay reachable
 - keep editor save as a clearly separated top-bar action rather than a repeated bottom footer
 
 ## Shared Layout Principles
