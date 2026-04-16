@@ -10,7 +10,7 @@ It should feel functional, structured, and easy to understand even when a scale 
 
 ```text
 +---------------- top bar ----------------+
-| New scale / Edit scale                  |
+| Back   New scale / Edit scale    Save   |
 +----------------------------------------+
 
 +--------------- metadata ----------------+
@@ -24,25 +24,22 @@ It should feel functional, structured, and easy to understand even when a scale 
 +----------------------------------------+
 
 +-------------- piano roll ---------------+
-| pitch rows + time grid                  |
+| fixed-height viewport + time grid       |
 | draggable note blocks                   |
 | snap: 1/1, 1/2 default, 1/4 optional   |
 | changing snap does not rewrite timing   |
+| vertical scroll for more octaves        |
 | selected-set editing only               |
 +----------------------------------------+
 
-+-------------- keyboard -----------------+
-| piano keyboard / armed note             |
-+----------------------------------------+
-
-+---------------- actions ----------------+
-| infer missing / lock confirmed sets     |
-| clear selected set / save               |
++---------------- set details ------------+
+| selected set preview / clear selected   |
 +----------------------------------------+
 
 +---------- sticky playback dock ---------+
 | tabs: Playback | Keyboard              |
-| Playback: cursor + bpm +/- + transport |
+| Playback: cursor + bpm +/- + compact   |
+| transport controls                     |
 | Keyboard: sticky keyboard note entry   |
 | attached to bottom, not floating card  |
 +----------------------------------------+
@@ -57,6 +54,7 @@ It should feel functional, structured, and easy to understand even when a scale 
 5. keep keyboard note entry reachable while editing and scrolling
 6. avoid accidental cross-set edits
 7. make snap changes safe and predictable
+8. keep save reachable without forcing a scroll to the bottom
 
 ## Set Editing Rule
 
@@ -67,6 +65,32 @@ Use one piano roll for the active set.
 - moving content across sets should require an explicit action, not a normal drag
 - changing snap changes the grid, not the saved timing
 - set cards in the lower section should be fully tappable for selection
+
+## Piano Roll Viewport Rule
+
+Keep the piano roll vertically bounded on screen while still allowing the full pitch range.
+
+- use a fixed-height viewport instead of rendering the full pitch range at once
+- allow vertical scrolling for more octaves rather than clipping to a narrow hard-coded range
+- auto-position the viewport near the selected set's notes when the active content changes
+- avoid trapping note drags at arbitrary visible octave edges
+
+## Save Action Rule
+
+Save is a top-bar action, not a bottom form footer.
+
+- keep `Save` in the app bar opposite `Back`
+- disable save until the scale has a name and at least one playable note
+- avoid a duplicate bottom save/cancel panel in the editor
+
+## Playback Panel Rule
+
+The playback panel in the editor dock should stay compact and playback-first.
+
+- use an icon-only primary play/stop control
+- show stop only while playing by swapping the primary control state
+- keep secondary playback actions like `Step` and `Reset` lighter than the primary control
+- preserve breathing room through layout balance before reducing dock padding
 
 ## Snap Rule
 

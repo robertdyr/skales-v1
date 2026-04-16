@@ -30,11 +30,12 @@ Cross-screen loop:
 - for multi-set editing, prefer one active-set piano roll over one giant shared timeline
 - treat snap size as a safe editor tool, not as an implicit quantize command
 - keep editor playback and keyboard entry in a bottom-attached dock so core editing controls stay reachable
+- keep editor save as a clearly separated top-bar action rather than a repeated bottom footer
 
 ## Shared Layout Principles
 
 - mobile-first vertical layouts
-- primary action near the bottom or clearly separated
+- primary action near the bottom or clearly separated; app-bar actions are preferred when they reduce long-scroll friction
 - result summaries above detailed evidence
 - locked user-confirmed sets should remain visually distinct from inferred sets
 - empty/loading/error states documented explicitly

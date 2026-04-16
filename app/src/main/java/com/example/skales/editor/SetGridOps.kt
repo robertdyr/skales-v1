@@ -23,8 +23,8 @@ object SetGridOps {
     const val CoarseStepBeats = 1f
     const val DefaultStepBeats = 0.5f
     const val FineStepBeats = 0.25f
-    const val DefaultMinMidi = 48
-    const val DefaultMaxMidi = 84
+    const val DefaultMinMidi = 21
+    const val DefaultMaxMidi = 108
     const val DefaultAdvanceBeats = 1f
     private const val MinimumColumnCount = 16
 

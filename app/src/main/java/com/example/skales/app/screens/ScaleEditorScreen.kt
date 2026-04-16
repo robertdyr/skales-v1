@@ -1,15 +1,20 @@
 package com.example.skales.app.screens
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
@@ -22,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,8 +38,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.skales.app.components.PianoKeyboard
@@ -45,7 +54,6 @@ import com.example.skales.app.components.SkalesPill
 import com.example.skales.app.components.SkalesPrimaryButton
 import com.example.skales.app.components.SkalesSecondaryButton
 import com.example.skales.app.components.SkalesSectionHeader
-import com.example.skales.app.components.SkalesWordmark
 import com.example.skales.app.viewmodel.ScaleEditorViewModel
 import com.example.skales.editor.ScaleEditorOps
 import com.example.skales.editor.SetGridOps
@@ -61,6 +69,7 @@ fun ScaleEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var dockMode by rememberSaveable { mutableStateOf(EditorDockMode.Playback) }
+    val canSave = uiState.isLoaded && uiState.name.isNotBlank() && uiState.sets.any { it.sounds.isNotEmpty() }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -70,6 +79,17 @@ fun ScaleEditorScreen(
                 title = { Text(if (uiState.isEditing) "Edit scale" else "New scale") },
                 navigationIcon = {
                     SkalesSecondaryButton(text = "Back", onClick = onNavigateBack)
+                },
+                actions = {
+                    TextButton(
+                        onClick = { viewModel.saveScale(onNavigateBack) },
+                        enabled = canSave,
+                    ) {
+                        Text(
+                            text = "Save",
+                            color = if (canSave) SaveActionColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        )
+                    }
                 },
             )
         },
@@ -115,16 +135,6 @@ fun ScaleEditorScreen(
                 .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SkalesPanel {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        SkalesWordmark(compact = true)
-                        SkalesPill(text = if (uiState.isEditing) "Editing" else "New scale", highlighted = true)
-                    }
-                }
-
                 SkalesPanel {
                     SkalesSectionHeader(
                         title = "Identity",
@@ -186,7 +196,7 @@ fun ScaleEditorScreen(
                 SkalesPanel {
                     SkalesSectionHeader(
                         title = "Piano roll",
-                        supporting = "Tap a key to arm a pitch, tap empty grid space to place it, and drag blocks to change pitch or spacing.",
+                        supporting = "Tap a key to arm a pitch, tap empty grid space to place it, drag blocks to change pitch or spacing, and scroll vertically for more octaves.",
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SnapChip(
@@ -255,24 +265,12 @@ fun ScaleEditorScreen(
                     }
                 }
 
-                SkalesPanel {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SkalesSecondaryButton(text = "Cancel", onClick = onNavigateBack)
-                        SkalesPrimaryButton(
-                            text = "Save scale",
-                            onClick = { viewModel.saveScale(onNavigateBack) },
-                            enabled = uiState.name.isNotBlank() && uiState.sets.any { it.sounds.isNotEmpty() },
-                        )
-                    }
-                }
             }
         }
     }
 }
+
+private val SaveActionColor = Color(0xFF2E7D32)
 
 @Composable
 private fun EditorPlaybackDock(
@@ -352,18 +350,18 @@ private fun EditorPlaybackDock(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        SkalesPrimaryButton(
-                            text = if (isPlaying) "Playing" else "Play",
-                            onClick = onPlay,
-                            modifier = Modifier.weight(1f),
-                            enabled = canPlay,
+                        PlaybackTransportButton(
+                            isStop = isPlaying,
+                            onClick = if (isPlaying) onStop else onPlay,
+                            enabled = if (isPlaying) true else canPlay,
                         )
+                        Spacer(modifier = Modifier.size(2.dp))
                         SkalesSecondaryButton(text = "Step", onClick = onStep, enabled = canStep)
                         SkalesSecondaryButton(text = "Reset", onClick = onReset)
-                        SkalesSecondaryButton(text = "Stop", onClick = onStop, enabled = isPlaying)
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 } else {
                     Text(
@@ -385,6 +383,62 @@ private fun EditorPlaybackDock(
 private enum class EditorDockMode {
     Playback,
     Keyboard,
+}
+
+@Composable
+private fun PlaybackTransportButton(
+    isStop: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    }
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f)
+    }
+
+    Box(
+        modifier = modifier
+            .size(62.dp)
+            .clip(CircleShape)
+            .border(
+                width = 1.dp,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                } else {
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+                },
+                shape = CircleShape,
+            )
+            .background(containerColor, CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.size(24.dp)) {
+            if (isStop) {
+                val inset = size.minDimension * 0.2f
+                drawRect(
+                    color = contentColor,
+                    topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                    size = androidx.compose.ui.geometry.Size(size.width - (inset * 2), size.height - (inset * 2)),
+                )
+            } else {
+                val path = Path().apply {
+                    moveTo(size.width * 0.28f, size.height * 0.18f)
+                    lineTo(size.width * 0.28f, size.height * 0.82f)
+                    lineTo(size.width * 0.8f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path = path, color = contentColor)
+            }
+        }
+    }
 }
 
 @Composable
