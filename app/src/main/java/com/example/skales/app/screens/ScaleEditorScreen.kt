@@ -146,10 +146,6 @@ fun ScaleEditorScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SkalesPanel {
-                    SkalesSectionHeader(
-                        title = "Identity",
-                        supporting = "Give the scale a clear practice label before building its sets.",
-                    )
                     OutlinedTextField(
                         value = uiState.name,
                         onValueChange = viewModel::updateName,
@@ -171,29 +167,31 @@ fun ScaleEditorScreen(
                         title = "Piano roll",
                         supporting = "Edit one selected set at a time. Use the dock to switch between playback, keyboard, and sets while keeping the piano roll centered.",
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SnapChip(
-                            text = "1/1",
-                            selected = uiState.snapStepBeats == SetGridOps.CoarseStepBeats,
-                            onClick = { viewModel.setSnapStepBeats(SetGridOps.CoarseStepBeats) },
-                        )
-                        SnapChip(
-                            text = "1/2 beat",
-                            selected = uiState.snapStepBeats == SetGridOps.DefaultStepBeats,
-                            onClick = { viewModel.setSnapStepBeats(SetGridOps.DefaultStepBeats) },
-                        )
-                        SnapChip(
-                            text = "1/4 beat",
-                            selected = uiState.snapStepBeats == SetGridOps.FineStepBeats,
-                            onClick = { viewModel.setSnapStepBeats(SetGridOps.FineStepBeats) },
-                        )
-                    }
                     val selectedSet = uiState.selectedSet ?: ScaleSet(sounds = emptyList())
                     SetPianoRollEditor(
                         grid = SetGridOps.toGrid(selectedSet, stepBeats = uiState.snapStepBeats),
                         onCellTap = viewModel::addNoteToSelectedSetAtPosition,
                         onNoteMove = viewModel::moveNoteInSelectedSet,
                         onDeleteNote = viewModel::removeNoteFromSelectedSet,
+                        controls = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SnapChip(
+                                    text = "1/1",
+                                    selected = uiState.snapStepBeats == SetGridOps.CoarseStepBeats,
+                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.CoarseStepBeats) },
+                                )
+                                SnapChip(
+                                    text = "1/2",
+                                    selected = uiState.snapStepBeats == SetGridOps.DefaultStepBeats,
+                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.DefaultStepBeats) },
+                                )
+                                SnapChip(
+                                    text = "1/4",
+                                    selected = uiState.snapStepBeats == SetGridOps.FineStepBeats,
+                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.FineStepBeats) },
+                                )
+                            }
+                        },
                     )
                 }
 

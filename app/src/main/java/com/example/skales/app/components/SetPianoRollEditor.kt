@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -57,6 +62,7 @@ fun SetPianoRollEditor(
     onNoteMove: (soundId: String, midi: Int, column: Int) -> Unit,
     onDeleteNote: (soundId: String) -> Unit,
     modifier: Modifier = Modifier,
+    controls: @Composable (() -> Unit)? = null,
 ) {
     val horizontalScroll = rememberScrollState()
     val verticalScroll = rememberScrollState()
@@ -97,19 +103,24 @@ fun SetPianoRollEditor(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Tap empty grid space to place a note at that pitch. Keyboard taps append at the end.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            SkalesSecondaryButton(
-                text = "Delete selected",
+            controls?.invoke()
+            IconButton(
                 onClick = {
                     selectedSoundId?.let(onDeleteNote)
                     selectedSoundId = null
                 },
                 enabled = selectedSoundId != null,
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Delete selected note",
+                    tint = if (selectedSoundId != null) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    },
+                )
+            }
         }
 
         Row(
@@ -117,14 +128,15 @@ fun SetPianoRollEditor(
                 .fillMaxWidth()
                 .horizontalScroll(horizontalScroll),
         ) {
-            Row(
+            Box(
                 modifier = Modifier
+                    .width(LabelWidth)
                     .height(viewportHeight)
                     .verticalScroll(verticalScroll),
             ) {
                 Box(
                     modifier = Modifier
-                        .width(LabelWidth)
+                        .fillMaxWidth()
                         .height(rollHeight),
                 ) {
                     for ((rowIndex, midi) in (grid.maxMidi downTo grid.minMidi).withIndex()) {
@@ -145,10 +157,17 @@ fun SetPianoRollEditor(
                         }
                     }
                 }
+            }
 
+            Box(
+                modifier = Modifier
+                    .width(rollWidth)
+                    .height(viewportHeight)
+                    .verticalScroll(verticalScroll),
+            ) {
                 Box(
                     modifier = Modifier
-                        .width(rollWidth)
+                        .fillMaxWidth()
                         .height(rollHeight)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f))
                         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f), RoundedCornerShape(16.dp))
