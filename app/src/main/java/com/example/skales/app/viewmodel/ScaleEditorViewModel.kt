@@ -111,18 +111,24 @@ class ScaleEditorViewModel(
         mutateSets(ScaleEditorOps::deleteSelectedSet)
     }
 
-    fun addChordCueToSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::addChordCueToSelectedSet)
+    fun addChordPreCueToSelectedSet() {
+        mutateSelectedSets(ScaleEditorOps::addChordPreCueToSelectedSet)
     }
 
-    fun removeChordCueFromSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::removeChordCueFromSelectedSet)
+    fun addChordPostCueToSelectedSet() {
+        mutateSelectedSets(ScaleEditorOps::addChordPostCueToSelectedSet)
+    }
+
+    fun removeChordPreCueFromSelectedSet() {
+        mutateSelectedSets(ScaleEditorOps::removeChordPreCueFromSelectedSet)
+    }
+
+    fun removeChordPostCueFromSelectedSet() {
+        mutateSelectedSets(ScaleEditorOps::removeChordPostCueFromSelectedSet)
     }
 
     fun onNotePressed(midi: Int) {
-        viewModelScope.launch {
-            pianoSoundPlayer.playSound(listOf(midi))
-        }
+        previewMidi(midi)
         stopScale()
         _uiState.update { state ->
             val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
@@ -145,6 +151,7 @@ class ScaleEditorViewModel(
     }
 
     fun addNoteToSelectedSetAtPosition(column: Int, midi: Int) {
+        previewMidi(midi)
         stopScale()
         _uiState.update { state ->
             val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
@@ -164,6 +171,7 @@ class ScaleEditorViewModel(
     }
 
     fun moveNoteInSelectedSet(soundId: String, midi: Int, column: Int) {
+        previewMidi(midi)
         mutateSelectedSets { sets, selectedSetIndex ->
             ScaleEditorOps.moveNoteInSelectedSet(sets, selectedSetIndex, soundId, midi, column, uiState.value.snapStepBeats)
         }
@@ -269,6 +277,12 @@ class ScaleEditorViewModel(
 
     private fun currentPlayableScale() = uiState.value.let { state ->
         ScaleEditorOps.buildDraftScale(state.scaleId, state.name, state.sets, state.bpm)
+    }
+
+    private fun previewMidi(midi: Int) {
+        viewModelScope.launch {
+            pianoSoundPlayer.playSound(listOf(midi))
+        }
     }
 
     private fun mutateSets(transform: (List<ScaleSet>, Int) -> Pair<List<ScaleSet>, Int>) {

@@ -31,6 +31,7 @@ Cross-screen loop:
 - treat snap size as a safe editor tool, not as an implicit quantize command
 - keep editor playback, keyboard entry, and set management in a bottom-attached dock so core editing controls stay reachable
 - keep dock panels visually stable when content changes; prefer internal scrolling over panel height jumps or clipped summaries
+- keep editor viewports biased toward the user's latest edit so newly placed content stays in focus
 - keep editor save as a clearly separated top-bar action rather than a repeated bottom footer
 
 ## Shared Layout Principles

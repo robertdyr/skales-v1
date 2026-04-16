@@ -71,6 +71,7 @@ fun SetPianoRollEditor(
     val rollWidth = CellWidth * grid.columnCount
     val rollHeight = RowHeight * rowCount
     val viewportHeight = RowHeight * VisibleRowCount
+    val viewportWidth = remember(grid.columnCount) { CellWidth * 8 }
     var selectedSoundId by remember(grid.notes) { mutableStateOf<String?>(null) }
     val dragOffsets = remember { mutableStateMapOf<String, Offset>() }
     val strongGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f)
@@ -86,6 +87,9 @@ fun SetPianoRollEditor(
         }
         midpoint.coerceIn(grid.minMidi, grid.maxMidi)
     }
+    val focusedColumn = remember(grid.notes) {
+        grid.notes.lastOrNull()?.column ?: 0
+    }
 
     LaunchedEffect(focusedMidi, rowCount) {
         val maxScroll = with(density) {
@@ -95,6 +99,15 @@ fun SetPianoRollEditor(
         val centeredRow = max(0, targetRow - (VisibleRowCount / 2))
         val targetScroll = min(maxScroll, with(density) { (RowHeight * centeredRow).roundToPx() })
         verticalScroll.scrollTo(targetScroll)
+    }
+
+    LaunchedEffect(focusedColumn, grid.columnCount) {
+        val maxScroll = with(density) {
+            max(0, rollWidth.roundToPx() - viewportWidth.roundToPx())
+        }
+        val centeredColumn = max(0, focusedColumn - 4)
+        val targetScroll = min(maxScroll, with(density) { (CellWidth * centeredColumn).roundToPx() })
+        horizontalScroll.scrollTo(targetScroll)
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -125,7 +138,7 @@ fun SetPianoRollEditor(
 
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .width(LabelWidth + viewportWidth)
                 .horizontalScroll(horizontalScroll),
         ) {
             Box(

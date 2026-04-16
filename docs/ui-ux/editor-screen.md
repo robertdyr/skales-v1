@@ -14,15 +14,17 @@ It should feel functional, structured, and easy to understand even when a scale 
 +----------------------------------------+
 
 +--------------- metadata ----------------+
-| scale name                              |
+| scale name field only                   |
 +----------------------------------------+
 
 +-------------- piano roll ---------------+
 | fixed-height viewport + time grid       |
 | draggable note blocks                   |
 | snap: 1/1, 1/2 default, 1/4 optional   |
+| snap row includes delete icon          |
 | changing snap does not rewrite timing   |
 | vertical scroll for more octaves        |
+| horizontal focus follows newest note    |
 | selected-set editing only               |
 +----------------------------------------+
 
@@ -31,8 +33,9 @@ It should feel functional, structured, and easy to understand even when a scale 
 | Playback: cursor + bpm +/- + compact   |
 | transport controls                     |
 | Keyboard: append-at-end note entry     |
+| + quick new-set action                 |
 | Sets: active set strip + selected set  |
-| detail card + set actions              |
+| detail card + pre/post cue actions     |
 | attached to bottom, not floating card  |
 +----------------------------------------+
 ```
@@ -59,6 +62,7 @@ Use one piano roll for the active set.
 - moving content across sets should require an explicit action, not a normal drag
 - changing snap changes the grid, not the saved timing
 - set selection and set actions live in the dock rather than duplicating set controls in the main scroll content
+- support both pre-cues and post-cues for scale exercises that announce the target both before and after the note run
 
 ## Piano Roll Viewport Rule
 
@@ -67,6 +71,7 @@ Keep the piano roll vertically bounded on screen while still allowing the full p
 - use a fixed-height viewport instead of rendering the full pitch range at once
 - allow vertical scrolling for more octaves rather than clipping to a narrow hard-coded range
 - auto-position the viewport near the selected set's notes when the active content changes
+- horizontally bias the viewport toward the newest note column so recent edits stay near center
 - avoid trapping note drags at arbitrary visible octave edges
 
 ## Save Action Rule
@@ -93,6 +98,7 @@ Set management belongs in the editor dock beside playback and keyboard.
 - provide one dedicated `Sets` tab in the dock rather than duplicate set sections in the main content
 - keep the selected set obvious from the highlighted set strip; do not duplicate selection state with a second badge inside the detail card
 - keep `New set`, cue actions, delete, and clear close to set selection
+- distinguish pre-cue and post-cue actions explicitly instead of treating cue placement as one generic action
 - let the piano roll remain the center of the screen while sets work alongside it
 - keep the selected-set detail card at a stable height so the dock does not jump when switching between empty and non-empty sets
 - allow long note/cue summaries and action rows to scroll horizontally rather than clipping

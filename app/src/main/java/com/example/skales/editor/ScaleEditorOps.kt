@@ -32,13 +32,9 @@ object ScaleEditorOps {
         return nextSets to safeIndex.coerceAtMost(nextSets.lastIndex)
     }
 
-    fun addChordCueToSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
+    fun addChordPreCueToSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            val chordNotes = set.sounds
-                .filter { it.kind == ScaleSoundKind.Note }
-                .flatMap { it.notes }
-                .distinct()
-                .take(3)
+            val chordNotes = chordCueNotes(set)
             if (chordNotes.isEmpty()) {
                 set
             } else {
@@ -53,11 +49,39 @@ object ScaleEditorOps {
         }
     }
 
-    fun removeChordCueFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
+    fun addChordPostCueToSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
+        return mutateSelectedSet(sets, selectedSetIndex) { set ->
+            val chordNotes = chordCueNotes(set)
+            if (chordNotes.isEmpty()) {
+                set
+            } else {
+                val cue = ScaleSound(notes = chordNotes, kind = ScaleSoundKind.Cue)
+                val updatedSounds = if (set.sounds.lastOrNull()?.kind == ScaleSoundKind.Cue) {
+                    set.sounds.dropLast(1) + cue
+                } else {
+                    set.sounds + cue
+                }
+                set.copy(sounds = updatedSounds)
+            }
+        }
+    }
+
+    fun removeChordPreCueFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
             set.copy(sounds = set.sounds.filterIndexed { index, sound ->
                 !(index == 0 && sound.kind == ScaleSoundKind.Cue)
             })
+        }
+    }
+
+    fun removeChordPostCueFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int): List<ScaleSet> {
+        return mutateSelectedSet(sets, selectedSetIndex) { set ->
+            val sounds = set.sounds
+            if (sounds.lastOrNull()?.kind == ScaleSoundKind.Cue) {
+                set.copy(sounds = sounds.dropLast(1))
+            } else {
+                set
+            }
         }
     }
 
@@ -150,5 +174,13 @@ object ScaleEditorOps {
         return normalizedSets.toMutableList().apply {
             this[safeIndex] = transform(this[safeIndex])
         }
+    }
+
+    private fun chordCueNotes(set: ScaleSet): List<Int> {
+        return set.sounds
+            .filter { it.kind == ScaleSoundKind.Note }
+            .flatMap { it.notes }
+            .distinct()
+            .take(3)
     }
 }

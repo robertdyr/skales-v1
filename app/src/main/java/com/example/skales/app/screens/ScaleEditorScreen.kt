@@ -105,7 +105,8 @@ fun ScaleEditorScreen(
                     canStep = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
                     sets = uiState.sets,
                     selectedSetIndex = uiState.selectedSetIndex,
-                    canRemoveCue = uiState.selectedSet?.sounds?.firstOrNull()?.kind == ScaleSoundKind.Cue,
+                    canRemovePreCue = uiState.selectedSet?.sounds?.firstOrNull()?.kind == ScaleSoundKind.Cue,
+                    canRemovePostCue = uiState.selectedSet?.sounds?.lastOrNull()?.kind == ScaleSoundKind.Cue,
                     canClearSelectedSet = uiState.selectedSet?.sounds?.isNotEmpty() == true,
                     onDecreaseBpm = viewModel::decreaseBpm,
                     onIncreaseBpm = viewModel::increaseBpm,
@@ -116,8 +117,10 @@ fun ScaleEditorScreen(
                     onNotePressed = viewModel::onNotePressed,
                     onSelectSet = viewModel::selectSet,
                     onAddSet = viewModel::addSet,
-                    onAddChordCue = viewModel::addChordCueToSelectedSet,
-                    onRemoveChordCue = viewModel::removeChordCueFromSelectedSet,
+                    onAddChordPreCue = viewModel::addChordPreCueToSelectedSet,
+                    onAddChordPostCue = viewModel::addChordPostCueToSelectedSet,
+                    onRemoveChordPreCue = viewModel::removeChordPreCueFromSelectedSet,
+                    onRemoveChordPostCue = viewModel::removeChordPostCueFromSelectedSet,
                     onDeleteSet = viewModel::deleteSelectedSet,
                     onClearSelectedSet = viewModel::clearSelectedSet,
                 )
@@ -214,7 +217,8 @@ private fun EditorPlaybackDock(
     canStep: Boolean,
     sets: List<ScaleSet>,
     selectedSetIndex: Int,
-    canRemoveCue: Boolean,
+    canRemovePreCue: Boolean,
+    canRemovePostCue: Boolean,
     canClearSelectedSet: Boolean,
     onDecreaseBpm: () -> Unit,
     onIncreaseBpm: () -> Unit,
@@ -225,8 +229,10 @@ private fun EditorPlaybackDock(
     onNotePressed: (Int) -> Unit,
     onSelectSet: (Int) -> Unit,
     onAddSet: () -> Unit,
-    onAddChordCue: () -> Unit,
-    onRemoveChordCue: () -> Unit,
+    onAddChordPreCue: () -> Unit,
+    onAddChordPostCue: () -> Unit,
+    onRemoveChordPreCue: () -> Unit,
+    onRemoveChordPostCue: () -> Unit,
     onDeleteSet: () -> Unit,
     onClearSelectedSet: () -> Unit,
 ) {
@@ -312,10 +318,12 @@ private fun EditorPlaybackDock(
                 } else {
                     when (mode) {
                         EditorDockMode.Keyboard -> {
-                            Text(
-                                text = "Keyboard",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                EditorActionChip(text = "New set", onClick = onAddSet)
+                            }
                             PianoKeyboard(
                                 onNotePressed = onNotePressed,
                                 modifier = Modifier.fillMaxWidth(),
@@ -360,11 +368,17 @@ private fun EditorPlaybackDock(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 EditorActionChip(text = "New set", onClick = onAddSet)
-                                EditorActionChip(text = "Add chord cue", onClick = onAddChordCue)
+                                EditorActionChip(text = "Add pre cue", onClick = onAddChordPreCue)
+                                EditorActionChip(text = "Add post cue", onClick = onAddChordPostCue)
                                 EditorActionChip(
-                                    text = "Remove cue",
-                                    onClick = onRemoveChordCue,
-                                    enabled = canRemoveCue,
+                                    text = "Remove pre cue",
+                                    onClick = onRemoveChordPreCue,
+                                    enabled = canRemovePreCue,
+                                )
+                                EditorActionChip(
+                                    text = "Remove post cue",
+                                    onClick = onRemoveChordPostCue,
+                                    enabled = canRemovePostCue,
                                 )
                                 EditorActionChip(text = "Delete set", onClick = onDeleteSet, enabled = sets.isNotEmpty())
                                 EditorActionChip(
@@ -561,7 +575,12 @@ private fun SetCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     set.sounds.forEachIndexed { soundIndex, sound ->
-                        val prefix = if (sound.kind == ScaleSoundKind.Cue) "C" else "N"
+                        val prefix = when {
+                            sound.kind == ScaleSoundKind.Cue && soundIndex == 0 -> "Pre"
+                            sound.kind == ScaleSoundKind.Cue && soundIndex == set.sounds.lastIndex -> "Post"
+                            sound.kind == ScaleSoundKind.Cue -> "Cue"
+                            else -> "N"
+                        }
                         AssistChip(
                             onClick = onSelect,
                             border = BorderStroke(
@@ -581,7 +600,7 @@ private fun SetCard(
                                 labelColor = MaterialTheme.colorScheme.onSurface,
                             ),
                             label = {
-                                Text("${prefix}${soundIndex + 1}: ${ScaleEditorOps.labelForSound(sound)}")
+                                Text("${prefix}: ${ScaleEditorOps.labelForSound(sound)}")
                             },
                         )
                     }

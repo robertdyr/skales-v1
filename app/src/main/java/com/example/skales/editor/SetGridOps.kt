@@ -100,7 +100,18 @@ object SetGridOps {
     }
 
     private fun rebuildSet(set: ScaleSet, notePositions: List<PositionedNote>, stepBeats: Float): ScaleSet {
-        val cueSounds = set.sounds.filter { it.kind != ScaleSoundKind.Note }
+        val firstNoteIndex = set.sounds.indexOfFirst { it.kind == ScaleSoundKind.Note }
+        val lastNoteIndex = set.sounds.indexOfLast { it.kind == ScaleSoundKind.Note }
+        val leadingCues = if (firstNoteIndex > 0) {
+            set.sounds.take(firstNoteIndex).filter { it.kind != ScaleSoundKind.Note }
+        } else {
+            emptyList()
+        }
+        val trailingCues = if (lastNoteIndex >= 0 && lastNoteIndex < set.sounds.lastIndex) {
+            set.sounds.drop(lastNoteIndex + 1).filter { it.kind != ScaleSoundKind.Note }
+        } else {
+            emptyList()
+        }
         val ordered = notePositions.sortedWith(compareBy<PositionedNote> { it.column }.thenBy { it.midi })
         val rebuiltNotes = ordered.mapIndexed { index, note ->
             val nextColumn = ordered.getOrNull(index + 1)?.column
@@ -115,7 +126,7 @@ object SetGridOps {
             )
         }
 
-        return set.copy(sounds = cueSounds + rebuiltNotes)
+        return set.copy(sounds = leadingCues + rebuiltNotes + trailingCues)
     }
 
     private fun extractNotePositions(set: ScaleSet, stepBeats: Float): List<PositionedNote> {
