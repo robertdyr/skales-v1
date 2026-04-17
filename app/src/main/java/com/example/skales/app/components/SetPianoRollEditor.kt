@@ -52,7 +52,7 @@ import kotlin.math.roundToInt
 private val TimeRowHeight = 36.dp
 private val NoteWidth = 32.dp
 private val NoteHeight = 28.dp
-private val CueSize = 22.dp
+private val CueSize = 28.dp
 private val CueCircleSpacing = 6.dp
 private val BoundaryHandleHeight = 8.dp
 
@@ -265,11 +265,11 @@ fun SetPianoRollEditor(
                             ) {
                                 if (isCue) {
                                     CueGroup(
+                                        noteMidis = noteMidis,
                                         noteKeys = noteKeys,
                                         primaryKey = primaryKey,
                                         color = noteColor,
                                         circleSize = CueSize,
-                                        spacing = CueCircleSpacing,
                                     )
                                 } else {
                                     NoteGroup(
@@ -395,12 +395,13 @@ private fun noteBodyLabel(midi: Int): String {
 
 @Composable
 private fun CueGroup(
+    noteMidis: List<Int>,
     noteKeys: List<PianoLayoutKey>,
     primaryKey: PianoLayoutKey,
     color: Color,
     circleSize: androidx.compose.ui.unit.Dp,
-    spacing: androidx.compose.ui.unit.Dp,
 ) {
+    val isSingleNoteCue = noteKeys.size == 1 && noteMidis.size == 1
     noteKeys.forEach { key ->
         Box(
             modifier = Modifier
@@ -408,7 +409,17 @@ private fun CueGroup(
                 .width(circleSize)
                 .height(circleSize)
                 .background(color = color, shape = androidx.compose.foundation.shape.CircleShape),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            if (isSingleNoteCue) {
+                Text(
+                    text = noteBodyLabel(noteMidis.first()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }
 

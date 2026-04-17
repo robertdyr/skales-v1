@@ -46,6 +46,7 @@ import com.example.skales.app.components.SkalesSecondaryButton
 import com.example.skales.app.viewmodel.ScaleEditorViewModel
 import com.example.skales.editor.SetGridOps
 import com.example.skales.model.ScaleSet
+import com.example.skales.model.ScaleSoundKind
 import com.example.skales.player.PlaybackCursor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,7 +136,7 @@ fun ScaleEditorScreen(
                             grid = SetGridOps.toGrid(uiState.sets, stepBeats = uiState.snapStepBeats),
                             selectedSetIndex = uiState.selectedSetIndex,
                             onSelectSet = viewModel::selectSet,
-                            onCellTap = viewModel::addNoteToSelectedSetAtPosition,
+                            onCellTap = viewModel::addSoundToSelectedSetAtPosition,
                             onNoteMove = viewModel::moveNoteInSelectedSet,
                             onBoundaryMove = viewModel::moveSetBoundary,
                             onDeleteNote = viewModel::removeNoteFromSelectedSet,
@@ -169,22 +170,27 @@ fun ScaleEditorScreen(
                                 .align(Alignment.CenterEnd)
                                 .padding(end = 12.dp, top = 80.dp),
                         )
+                        PlacementOverlay(
+                            placementKind = uiState.placementKind,
+                            onToggleKind = {
+                                viewModel.setPlacementKind(
+                                    if (uiState.placementKind == ScaleSoundKind.Note) ScaleSoundKind.Cue else ScaleSoundKind.Note,
+                                )
+                            },
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 12.dp, top = 80.dp),
+                        )
                         SetsOverlay(
                             sets = uiState.sets,
                             selectedSetIndex = uiState.selectedSetIndex,
                             isExpanded = isSetsPanelExpanded,
-                            canRemovePreCue = selectedSet.sounds.firstOrNull()?.kind == com.example.skales.model.ScaleSoundKind.Cue,
-                            canRemovePostCue = selectedSet.sounds.lastOrNull()?.kind == com.example.skales.model.ScaleSoundKind.Cue,
                             canClearSelectedSet = selectedSet.sounds.isNotEmpty(),
                             onToggleExpanded = { isSetsPanelExpanded = !isSetsPanelExpanded },
                             onSelectSet = viewModel::selectSet,
                             onAddSet = viewModel::addSet,
                             onDeleteSelectedSet = viewModel::deleteSelectedSet,
                             onClearSelectedSet = viewModel::clearSelectedSet,
-                            onAddPreCue = viewModel::addChordPreCueToSelectedSet,
-                            onAddPostCue = viewModel::addChordPostCueToSelectedSet,
-                            onRemovePreCue = viewModel::removeChordPreCueFromSelectedSet,
-                            onRemovePostCue = viewModel::removeChordPostCueFromSelectedSet,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .padding(end = 12.dp),
@@ -398,18 +404,12 @@ private fun SetsOverlay(
     sets: List<ScaleSet>,
     selectedSetIndex: Int,
     isExpanded: Boolean,
-    canRemovePreCue: Boolean,
-    canRemovePostCue: Boolean,
     canClearSelectedSet: Boolean,
     onToggleExpanded: () -> Unit,
     onSelectSet: (Int) -> Unit,
     onAddSet: () -> Unit,
     onDeleteSelectedSet: () -> Unit,
     onClearSelectedSet: () -> Unit,
-    onAddPreCue: () -> Unit,
-    onAddPostCue: () -> Unit,
-    onRemovePreCue: () -> Unit,
-    onRemovePostCue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -441,16 +441,6 @@ private fun SetsOverlay(
                         OverlayActionChip(text = "Delete", onClick = onDeleteSelectedSet, enabled = sets.size > 1)
                         OverlayActionChip(text = "Clear", onClick = onClearSelectedSet, enabled = canClearSelectedSet)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OverlayActionChip(
-                            text = if (canRemovePreCue) "Remove pre" else "Add pre",
-                            onClick = if (canRemovePreCue) onRemovePreCue else onAddPreCue,
-                        )
-                        OverlayActionChip(
-                            text = if (canRemovePostCue) "Remove post" else "Add post",
-                            onClick = if (canRemovePostCue) onRemovePostCue else onAddPostCue,
-                        )
-                    }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(sets) { index, set ->
                             SetListItem(
@@ -473,6 +463,22 @@ private fun SetsOverlay(
                 highlighted = isExpanded,
             )
         }
+    }
+}
+
+@Composable
+private fun PlacementOverlay(
+    placementKind: ScaleSoundKind,
+    onToggleKind: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        SkalesCircleButton(
+            label = if (placementKind == ScaleSoundKind.Note) "N" else "C",
+            onClick = onToggleKind,
+            size = 48.dp,
+            highlighted = placementKind == ScaleSoundKind.Cue,
+        )
     }
 }
 

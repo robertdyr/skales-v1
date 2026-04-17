@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.skales.editor.ScaleEditorOps
 import com.example.skales.editor.SetGridOps
 import com.example.skales.model.ScaleSet
+import com.example.skales.model.ScaleSoundKind
 import com.example.skales.player.PianoSoundPlayer
 import com.example.skales.player.PlaybackCursor
 import com.example.skales.player.PlaybackDirection
@@ -31,6 +32,7 @@ data class ScaleEditorUiState(
     val name: String = "",
     val sets: List<ScaleSet> = ScaleEditorOps.defaultSets(),
     val selectedSetIndex: Int = 0,
+    val placementKind: ScaleSoundKind = ScaleSoundKind.Note,
     val snapStepBeats: Float = SetGridOps.DefaultStepBeats,
     val bpm: Int = DefaultBpm,
     val playbackCursor: PlaybackCursor = PlaybackCursor(),
@@ -120,27 +122,15 @@ class ScaleEditorViewModel(
         _uiState.update { it.copy(snapStepBeats = stepBeats) }
     }
 
-    fun addChordPreCueToSelectedSet() {
-        mutateSelectedSet(ScaleEditorOps::addChordPreCueToSelectedSet)
-    }
-
-    fun addChordPostCueToSelectedSet() {
-        mutateSelectedSet(ScaleEditorOps::addChordPostCueToSelectedSet)
-    }
-
-    fun removeChordPreCueFromSelectedSet() {
-        mutateSelectedSet(ScaleEditorOps::removeChordPreCueFromSelectedSet)
-    }
-
-    fun removeChordPostCueFromSelectedSet() {
-        mutateSelectedSet(ScaleEditorOps::removeChordPostCueFromSelectedSet)
+    fun setPlacementKind(kind: ScaleSoundKind) {
+        _uiState.update { it.copy(placementKind = kind) }
     }
 
     fun onNotePressed(midi: Int) {
         previewMidi(midi)
         stopScale()
         _uiState.update { state ->
-            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
+            val nextSets = ScaleEditorOps.addSoundToSelectedSetAtColumn(
                 sets = state.sets,
                 selectedSetIndex = state.selectedSetIndex,
                 midi = midi,
@@ -148,6 +138,7 @@ class ScaleEditorViewModel(
                     state.selectedSet ?: ScaleSet(sounds = emptyList()),
                     state.snapStepBeats,
                 ),
+                kind = state.placementKind,
                 stepBeats = state.snapStepBeats,
             )
             val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
@@ -158,16 +149,17 @@ class ScaleEditorViewModel(
         }
     }
 
-    fun addNoteToSelectedSetAtPosition(column: Int, midi: Int) {
+    fun addSoundToSelectedSetAtPosition(column: Int, midi: Int) {
         previewMidi(midi)
         stopScale()
         _uiState.update { state ->
-            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
-                state.sets,
-                state.selectedSetIndex,
-                midi,
-                column,
-                state.snapStepBeats,
+            val nextSets = ScaleEditorOps.addSoundToSelectedSetAtColumn(
+                sets = state.sets,
+                selectedSetIndex = state.selectedSetIndex,
+                midi = midi,
+                column = column,
+                kind = state.placementKind,
+                stepBeats = state.snapStepBeats,
             )
             val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
             state.copy(

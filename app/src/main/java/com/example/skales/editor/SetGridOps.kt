@@ -79,10 +79,16 @@ object SetGridOps {
         )
     }
 
-    fun addNoteAtColumn(set: ScaleSet, midi: Int, column: Int, stepBeats: Float = DefaultStepBeats): ScaleSet {
+    fun addSoundAtColumn(
+        set: ScaleSet,
+        midi: Int,
+        column: Int,
+        kind: ScaleSoundKind = ScaleSoundKind.Note,
+        stepBeats: Float = DefaultStepBeats,
+    ): ScaleSet {
         val newSound = ScaleSound(
             notes = listOf(midi),
-            kind = ScaleSoundKind.Note,
+            kind = kind,
             breakAfterBeats = DefaultAdvanceBeats,
         )
         val notePositions = extractSoundPositions(set, stepBeats) + PositionedSound(
@@ -134,20 +140,12 @@ object SetGridOps {
 
         val movesCurrentSetBoundary = selectedSetIndex > 0 && target.column == currentSetStart
 
-        val previousSameSet = positionedSounds
-            .filter { it.setIndex == selectedSetIndex && it.soundId != soundId && it.column < target.column }
-            .maxByOrNull { it.column }
-        val nextSameSet = positionedSounds
-            .filter { it.setIndex == selectedSetIndex && it.soundId != soundId && it.column > target.column }
-            .minByOrNull { it.column }
-
         val minColumn = if (movesCurrentSetBoundary) {
             (previousSetLast?.column ?: -1) + 1
         } else {
-            (previousSameSet?.column ?: -1) + 1
+            0
         }
-        val maxColumn = nextSameSet?.column?.minus(1) ?: Int.MAX_VALUE
-        val clampedColumn = column.coerceIn(minColumn, maxColumn.coerceAtLeast(minColumn))
+        val clampedColumn = column.coerceAtLeast(minColumn)
 
         val crossedBoundary = nextSetStart != null && clampedColumn >= nextSetStart
         val boundaryShift = if (crossedBoundary) (clampedColumn + 1) - nextSetStart else 0
