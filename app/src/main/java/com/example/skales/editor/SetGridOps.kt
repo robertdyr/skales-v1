@@ -132,27 +132,7 @@ object SetGridOps {
             .filter { it.setIndex == selectedSetIndex + 1 }
             .minOfOrNull { it.column }
 
-        if (selectedSetIndex > 0) {
-            val delta = column - target.column
-            val minSetStart = (previousSetLast?.column ?: -1) + 1
-            val requestedSetStart = currentSetStart + delta
-            val clampedSetStart = requestedSetStart.coerceAtLeast(minSetStart)
-            val appliedDelta = clampedSetStart - currentSetStart
-            val shifted = positionedSounds.map { sound ->
-                when {
-                    sound.setIndex < selectedSetIndex -> sound
-                    sound.setIndex == selectedSetIndex && sound.soundId == soundId -> {
-                        sound.copy(
-                            midi = midi,
-                            column = sound.column + appliedDelta,
-                            sourceSound = sound.sourceSound.copy(notes = transposeNotes(sound.sourceSound.notes, sound.midi, midi)),
-                        )
-                    }
-                    else -> sound.copy(column = sound.column + appliedDelta)
-                }
-            }
-            return rebuildTimelineSets(normalizedSets, shifted, stepBeats)
-        }
+        val movesCurrentSetBoundary = selectedSetIndex > 0 && target.column == currentSetStart
 
         val previousSameSet = positionedSounds
             .filter { it.setIndex == selectedSetIndex && it.soundId != soundId && it.column < target.column }
@@ -161,7 +141,11 @@ object SetGridOps {
             .filter { it.setIndex == selectedSetIndex && it.soundId != soundId && it.column > target.column }
             .minByOrNull { it.column }
 
-        val minColumn = (previousSameSet?.column ?: -1) + 1
+        val minColumn = if (movesCurrentSetBoundary) {
+            (previousSetLast?.column ?: -1) + 1
+        } else {
+            (previousSameSet?.column ?: -1) + 1
+        }
         val maxColumn = nextSameSet?.column?.minus(1) ?: Int.MAX_VALUE
         val clampedColumn = column.coerceIn(minColumn, maxColumn.coerceAtLeast(minColumn))
 
