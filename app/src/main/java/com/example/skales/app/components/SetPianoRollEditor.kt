@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.example.skales.editor.SetGrid
 import com.example.skales.editor.SetGridNote
 import com.example.skales.model.Note
@@ -54,7 +56,11 @@ private val NoteWidth = 32.dp
 private val NoteHeight = 28.dp
 private val CueSize = 28.dp
 private val CueCircleSpacing = 6.dp
-private val BoundaryHandleHeight = 8.dp
+private val BoundaryHandleHeight = 2.dp
+private val BoundaryGripWidth = 22.dp
+private val BoundaryGripHeight = 12.dp
+private val BoundaryVisualHeight = 20.dp
+private val BoundaryAccentColor = Color(0xFFD85C5C)
 
 @Composable
 fun SetPianoRollEditor(
@@ -95,12 +101,13 @@ fun SetPianoRollEditor(
     var selectedSoundId by remember(grid.notes) { mutableStateOf<String?>(null) }
     var didInitializeVerticalScroll by remember { mutableStateOf(false) }
     val dragOffsets = remember { mutableStateMapOf<String, Offset>() }
+    val boundaryDragOffsets = remember { mutableStateMapOf<Int, Float>() }
     val pitchGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
     val strongTimeGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.34f)
     val softTimeGridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
     val selectedSetColor = MaterialTheme.colorScheme.primary
     val unselectedSetColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.62f)
-    val setBoundaryColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
+    val setBoundaryColor = BoundaryAccentColor
     val cueSelectedColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f)
     val cueUnselectedColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.52f)
     val selectedSetStartColumn = grid.setStartColumns.getOrElse(selectedSetIndex) { 0 }
@@ -117,6 +124,7 @@ fun SetPianoRollEditor(
 
     BoxWithConstraints(modifier = modifier) {
         val viewportHeight = maxHeight
+        val viewportWidth = maxWidth
 
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -281,31 +289,86 @@ fun SetPianoRollEditor(
                             }
                         }
 
+                        val viewportGripOffset = with(density) { pitchScrollState.value.toDp() } + ((viewportWidth - BoundaryGripWidth) / 2)
+
                         grid.setStartColumns.drop(1).forEachIndexed { index, startColumn ->
                             val targetSetIndex = index + 1
+                            val boundaryDragOffset = boundaryDragOffsets[targetSetIndex] ?: 0f
                             Box(
                                 modifier = Modifier
-                                    .offset(y = (TimeRowHeight * (grid.columnCount - startColumn)) - (BoundaryHandleHeight / 2))
+                                    .offset(y = (TimeRowHeight * (grid.columnCount - startColumn)) - (BoundaryVisualHeight / 2))
+                                    .offset { IntOffset(x = 0, y = boundaryDragOffset.roundToInt()) }
                                     .width(rollWidth)
-                                    .height(BoundaryHandleHeight)
+                                    .height(BoundaryVisualHeight)
+                                    .zIndex(1f)
                                     .pointerInput(targetSetIndex, startColumn, timeRowHeightPx) {
                                         var accumulatedDragY = 0f
                                         detectDragGestures(
-                                            onDragStart = { accumulatedDragY = 0f },
-                                            onDragCancel = { accumulatedDragY = 0f },
+                                            onDragStart = {
+                                                accumulatedDragY = 0f
+                                                boundaryDragOffsets[targetSetIndex] = 0f
+                                            },
+                                            onDragCancel = {
+                                                accumulatedDragY = 0f
+                                                boundaryDragOffsets.remove(targetSetIndex)
+                                            },
                                             onDragEnd = {
                                                 val movedRows = (accumulatedDragY / timeRowHeightPx).roundToInt()
                                                 val targetColumn = (startColumn - movedRows).coerceAtLeast(0)
                                                 onBoundaryMove(targetSetIndex, targetColumn)
                                                 accumulatedDragY = 0f
+                                                boundaryDragOffsets.remove(targetSetIndex)
                                             },
                                             onDrag = { change, dragAmount ->
                                                 change.consume()
                                                 accumulatedDragY += dragAmount.y
+                                                boundaryDragOffsets[targetSetIndex] = accumulatedDragY
                                             },
                                         )
                                     },
-                            )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .fillMaxWidth()
+                                        .height(BoundaryHandleHeight)
+                                        .background(setBoundaryColor.copy(alpha = 0.9f)),
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .offset(x = viewportGripOffset)
+                                        .width(BoundaryGripWidth)
+                                        .height(BoundaryGripHeight)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = setBoundaryColor,
+                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        repeat(3) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(2.dp)
+                                                    .height(6.dp)
+                                                    .background(
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+                                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                                                    ),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

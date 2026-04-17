@@ -143,33 +143,6 @@ fun ScaleEditorScreen(
                             pitchScrollState = pitchScrollState,
                             modifier = Modifier.fillMaxSize(),
                         )
-                        PlaybackOverlay(
-                            bpm = uiState.bpm,
-                            cursor = uiState.playbackCursor,
-                            isPlaying = uiState.isPlaying,
-                            canPlay = uiState.sets.any { it.sounds.isNotEmpty() },
-                            isExpanded = isPlaybackPanelExpanded,
-                            onToggleExpanded = { isPlaybackPanelExpanded = !isPlaybackPanelExpanded },
-                            onPlayToggle = {
-                                if (uiState.isPlaying) viewModel.stopScale() else viewModel.playScale()
-                            },
-                            onStep = viewModel::stepScale,
-                            onReset = viewModel::resetPlaybackCursor,
-                            onDecreaseBpm = viewModel::decreaseBpm,
-                            onIncreaseBpm = viewModel::increaseBpm,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 12.dp, bottom = 80.dp),
-                        )
-                        GridOverlay(
-                            selectedStepBeats = uiState.snapStepBeats,
-                            isExpanded = isGridPanelExpanded,
-                            onToggleExpanded = { isGridPanelExpanded = !isGridPanelExpanded },
-                            onSelectStepBeats = viewModel::setSnapStepBeats,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 12.dp, top = 80.dp),
-                        )
                         PlacementOverlay(
                             placementKind = uiState.placementKind,
                             onToggleKind = {
@@ -181,12 +154,29 @@ fun ScaleEditorScreen(
                                 .align(Alignment.CenterStart)
                                 .padding(start = 12.dp, top = 80.dp),
                         )
-                        SetsOverlay(
+                        RightSideControls(
+                            bpm = uiState.bpm,
+                            cursor = uiState.playbackCursor,
+                            isPlaying = uiState.isPlaying,
+                            canPlay = uiState.sets.any { it.sounds.isNotEmpty() },
+                            isPlaybackExpanded = isPlaybackPanelExpanded,
+                            onTogglePlaybackExpanded = { isPlaybackPanelExpanded = !isPlaybackPanelExpanded },
+                            onPlayToggle = {
+                                if (uiState.isPlaying) viewModel.stopScale() else viewModel.playScale()
+                            },
+                            onStep = viewModel::stepScale,
+                            onReset = viewModel::resetPlaybackCursor,
+                            onDecreaseBpm = viewModel::decreaseBpm,
+                            onIncreaseBpm = viewModel::increaseBpm,
+                            selectedStepBeats = uiState.snapStepBeats,
+                            isGridExpanded = isGridPanelExpanded,
+                            onToggleGridExpanded = { isGridPanelExpanded = !isGridPanelExpanded },
+                            onSelectStepBeats = viewModel::setSnapStepBeats,
                             sets = uiState.sets,
                             selectedSetIndex = uiState.selectedSetIndex,
-                            isExpanded = isSetsPanelExpanded,
+                            isSetsExpanded = isSetsPanelExpanded,
                             canClearSelectedSet = selectedSet.sounds.isNotEmpty(),
-                            onToggleExpanded = { isSetsPanelExpanded = !isSetsPanelExpanded },
+                            onToggleSetsExpanded = { isSetsPanelExpanded = !isSetsPanelExpanded },
                             onSelectSet = viewModel::selectSet,
                             onAddSet = viewModel::addSet,
                             onDeleteSelectedSet = viewModel::deleteSelectedSet,
@@ -208,6 +198,72 @@ fun ScaleEditorScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RightSideControls(
+    bpm: Int,
+    cursor: PlaybackCursor,
+    isPlaying: Boolean,
+    canPlay: Boolean,
+    isPlaybackExpanded: Boolean,
+    onTogglePlaybackExpanded: () -> Unit,
+    onPlayToggle: () -> Unit,
+    onStep: () -> Unit,
+    onReset: () -> Unit,
+    onDecreaseBpm: () -> Unit,
+    onIncreaseBpm: () -> Unit,
+    selectedStepBeats: Float,
+    isGridExpanded: Boolean,
+    onToggleGridExpanded: () -> Unit,
+    onSelectStepBeats: (Float) -> Unit,
+    sets: List<ScaleSet>,
+    selectedSetIndex: Int,
+    isSetsExpanded: Boolean,
+    canClearSelectedSet: Boolean,
+    onToggleSetsExpanded: () -> Unit,
+    onSelectSet: (Int) -> Unit,
+    onAddSet: () -> Unit,
+    onDeleteSelectedSet: () -> Unit,
+    onClearSelectedSet: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        PlaybackOverlay(
+            bpm = bpm,
+            cursor = cursor,
+            isPlaying = isPlaying,
+            canPlay = canPlay,
+            isExpanded = isPlaybackExpanded,
+            onToggleExpanded = onTogglePlaybackExpanded,
+            onPlayToggle = onPlayToggle,
+            onStep = onStep,
+            onReset = onReset,
+            onDecreaseBpm = onDecreaseBpm,
+            onIncreaseBpm = onIncreaseBpm,
+        )
+        SetsOverlay(
+            sets = sets,
+            selectedSetIndex = selectedSetIndex,
+            isExpanded = isSetsExpanded,
+            canClearSelectedSet = canClearSelectedSet,
+            onToggleExpanded = onToggleSetsExpanded,
+            onSelectSet = onSelectSet,
+            onAddSet = onAddSet,
+            onDeleteSelectedSet = onDeleteSelectedSet,
+            onClearSelectedSet = onClearSelectedSet,
+        )
+        GridOverlay(
+            selectedStepBeats = selectedStepBeats,
+            isExpanded = isGridExpanded,
+            onToggleExpanded = onToggleGridExpanded,
+            onSelectStepBeats = onSelectStepBeats,
+        )
     }
 }
 
@@ -277,7 +333,7 @@ private fun PlaybackOverlay(
                 highlighted = isExpanded,
             )
             SkalesCircleButton(
-                label = if (isPlaying) "||" else ">",
+                label = if (isPlaying) "||" else "▶",
                 onClick = onPlayToggle,
                 size = 62.dp,
                 highlighted = isPlaying,
@@ -370,7 +426,7 @@ private fun GridOverlay(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             SkalesCircleButton(
-                label = if (isExpanded) "×" else "#",
+                label = if (isExpanded) "×" else gridStepLabel(selectedStepBeats),
                 onClick = onToggleExpanded,
                 size = 48.dp,
                 highlighted = isExpanded,
@@ -397,6 +453,14 @@ private fun GridStepChip(
         ),
         label = { Text(text) },
     )
+}
+
+private fun gridStepLabel(stepBeats: Float): String {
+    return when (stepBeats) {
+        SetGridOps.CoarseStepBeats -> "1/1"
+        SetGridOps.FineStepBeats -> "1/4"
+        else -> "1/2"
+    }
 }
 
 @Composable
