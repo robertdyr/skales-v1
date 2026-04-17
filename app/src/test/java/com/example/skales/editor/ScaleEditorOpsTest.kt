@@ -10,7 +10,7 @@ import org.junit.Test
 
 class ScaleEditorOpsTest {
     @Test
-    fun addChordCue_prependsCueFromDistinctNotes() {
+    fun addChordPreCue_prependsCueFromDistinctNotes() {
         val sets = listOf(
             ScaleSet(
                 sounds = listOf(
@@ -21,7 +21,7 @@ class ScaleEditorOpsTest {
             ),
         )
 
-        val updated = ScaleEditorOps.addChordCueToSelectedSet(sets, 0)
+        val updated = ScaleEditorOps.addChordPreCueToSelectedSet(sets, 0)
 
         assertEquals(ScaleSoundKind.Cue, updated.first().sounds.first().kind)
         assertEquals(listOf(60, 64, 67), updated.first().sounds.first().notes)

@@ -2,14 +2,13 @@
 
 ## Responsibility
 
-The editor is the surface for creating, correcting, and guiding inference of a `Scale`.
+The editor is the surface for creating, correcting, and eventually guiding inference of a `Scale`.
 
-The editor serves three roles:
-1. **Correction**: fix mistakes in an auto-recognized scale
-2. **Manual creation**: for power users who want full control
-3. **Inference seeding**: provide one or more trusted sets, then ask the infer engine to fill the rest
+It currently serves three roles:
 
-Even if recording works well, the editor must remain the place where the user can lock in what they know and ask the app to infer the rest.
+1. correction of manually entered or inferred scales
+2. manual creation
+3. future inference seeding
 
 ## External Contract
 
@@ -20,25 +19,14 @@ flowchart LR
     Editor --> Scale["final Scale"]
 ```
 
-## Internal Shape
+## Current Architectural Shape
 
 ```mermaid
 flowchart LR
-    Draft["current draft"] --> EditOps["edit operations"] --> NextDraft["next draft/state"]
+    Draft["current editor state"] --> EditOps["edit operations"] --> NextDraft["next editor state"]
     Action2["edit action"] --> EditOps
     EditOps --> Saveable["saveable Scale"]
 ```
-
-## Current Responsibilities
-
-- pure edit operations over sets/sounds
-- draft-to-Scale conversion
-- labels/helpers for editor-specific domain behavior
-- selected-set piano-roll projection and snapping helpers for editor interaction
-- non-destructive snap switching for the editor grid
-
-The editor component should not own screen/session state by default.
-`selectedSetIndex`, loading flags, playback flags, and navigation state belong in app-layer `ViewModel`s.
 
 ## Current Code Mapping
 
@@ -51,55 +39,117 @@ The editor component should not own screen/session state by default.
 
 Current split:
 
-- `editor/` provides pure editing operations
-- `app/viewmodel/ScaleEditorViewModel` owns screen/session state
+- `editor/` owns pure editing operations and grid projection logic
+- `app/viewmodel/ScaleEditorViewModel` owns editor screen/session state
 - `app/` owns UI components and navigation
 
-Important interaction rule:
+## Editor Model
 
-- snap size is an editor interaction setting, not a destructive timing rewrite
-- changing from `1/4` to `1/2` or `1/1` changes the grid and future snapping behavior
-- existing stored note spacing should remain intact unless an explicit quantize action is introduced later
+The editor is no longer modeled as one isolated piano roll per active set.
 
-## Future Role In Inference Flow
+The implemented interaction model is:
 
-The editor should become both the correction surface after analysis and the manual seed surface for reinference.
+- one shared timeline grid for all sets
+- one selected set for editing ownership
+- other sets rendered as visible context
+- floating overlays for playback, grid controls, and sets
+- attached keyboard under the roll, sharing pitch scroll with the grid
 
-Target handoff:
+This is important:
+
+- the editor should feel like one timeline with group boundaries
+- sets are still real domain structure
+- set boundaries are visual/grouping structure, not separate timing containers
+
+## Timing Rule
+
+For v1, timing is intentionally reduced to one dimension:
+
+- `ScaleSound.breakAfterBeats` is the only editable spacing value
+- all sounds are treated as having the same played duration
+- there is no velocity or articulation editing
+- there is no set-level break anymore
+
+This means:
+
+- spacing between any two adjacent sounds is owned by the earlier sound
+- that includes spacing across a set boundary
+- moving a set boundary later should increase the `breakAfterBeats` of the last sound of the previous set
+- moving a set boundary earlier should decrease that same previous break
+
+The editor now needs to think in timeline-adjacent sound relationships even when the affected sounds belong to different sets.
+
+## Grid Projection Rule
+
+The grid is a projection of the set/sound model, not a second saved model.
+
+Projection requirements:
+
+- render all sounds from all sets on one timeline
+- keep set membership for coloring, selection, and overlays
+- preserve multi-note sounds as one event with multiple visible pitches
+- preserve `ScaleSoundKind` for cue vs note rendering
+
+Current rendering approach:
+
+- note sound: square block
+- cue sound: circular block
+- multi-note cue: grouped circles that move together
+
+## Rebuild Rule
+
+When the user moves a sound in the shared grid:
+
+- the edit should be interpreted on the shared timeline
+- timing deltas should be rebuilt from adjacent sounds across the whole timeline
+- rebuilt `breakAfterBeats` values should then be written back into the saved `ScaleSet -> ScaleSound` structure
+
+This shared-timeline rebuild behavior is what allows cross-set spacing edits without reintroducing set-level break fields.
+
+## Selection And Ownership Rule
+
+- selected set controls which sounds are editable
+- non-selected sets remain visible but are not directly draggable
+- tapping a sound in another set should switch the working set directly from the timeline
+- the set boundary is effectively where that set's first sound begins
+- separator dragging is the primary explicit control for cross-set spacing
+- dragging within a set should keep the separator stable unless the drag is one of the explicit boundary-moving cases
+
+## What The Editor Must Not Become
+
+The current product direction is explicitly not a mini DAW.
+
+Avoid adding by default:
+
+- per-sound duration editing
+- velocity editing
+- free articulation/envelope tools
+- hidden cue-specific timing behaviors
+- a second independent timeline model separate from the saved scale model
+
+## Inference Role
+
+The editor should still become the seed-and-correct surface for inference later.
+
+Target loop:
 
 ```mermaid
 flowchart LR
-    DraftHandoff["ScaleDraft"] --> EditorHandoff["Editor"] --> Corrected["corrected Scale"]
-    EditorHandoff --> Reinfer["infer"] --> DraftHandoff
+    Seed["manual seed"] --> EditorHandoff["Editor"] --> Infer["infer"] --> EditorHandoff
+    EditorHandoff --> Save["save"]
 ```
 
-Typical future loop:
+Likely future additions:
 
-1. user writes set 1
-2. editor asks the infer engine for a full guess
-3. user fixes set 2
-4. editor asks again with sets 1 and 2 locked
-
-## Editing Shape
-
-The editor should support multiple sets without turning them into one continuous DAW timeline.
-
-Recommended interaction model:
-
-- show a compact strip of all sets
-- make one set active at a time
-- edit only the active set in a large piano-roll grid
-- allow snap changes without mutating note timing
-- keep cross-set movement explicit rather than accidental
-
-That preserves the app's set-based structure while still giving the user a much nicer spacing and pitch editing surface.
+- inferred vs confirmed set state
+- lock/unlock set controls
+- infer missing sets
+- better candidate summary/handoff inside the sets overlay
 
 ## What The Editor Must Not Know
 
 - how pitch detection works
-- how files are imported
+- how audio files are imported
 - how candidate ranking is computed
 
-It should accept draft-like data, not own analysis logic.
-
-It also should not own inference logic. It can request inference, but the guessing belongs in `infer`.
+The editor can request inference, but guessing belongs in `infer`.

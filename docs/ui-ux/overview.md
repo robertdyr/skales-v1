@@ -27,11 +27,11 @@ Cross-screen loop:
 - keep analyzer evidence readable, not hidden
 - keep inferred results editable and reinferable
 - keep correction simpler than inference internals
-- for multi-set editing, prefer one active-set piano roll over one giant shared timeline
+- for multi-set editing, prefer one shared timeline with explicit set boundaries over isolated per-set piano rolls
 - treat snap size as a safe editor tool, not as an implicit quantize command
-- keep editor playback, keyboard entry, and set management in a bottom-attached dock so core editing controls stay reachable
-- keep dock panels visually stable when content changes; prefer internal scrolling over panel height jumps or clipped summaries
-- keep editor viewports biased toward the user's latest edit so newly placed content stays in focus
+- keep editor controls as floating overlays instead of restoring the old bottom dock
+- keep the keyboard attached directly to the piano roll
+- do not auto-jump the editor viewport on every edit
 - keep editor save as a clearly separated top-bar action rather than a repeated bottom footer
 
 ## Shared Layout Principles
@@ -41,7 +41,7 @@ Cross-screen loop:
 - result summaries above detailed evidence
 - locked user-confirmed sets should remain visually distinct from inferred sets
 - empty/loading/error states documented explicitly
-- cards/sections should visually separate tasks: summary, controls, evidence, save action
+- when the editor is the main task, let the piano roll own most of the screen instead of wrapping it in extra cards
 
 ## Shared Flow Rule
 

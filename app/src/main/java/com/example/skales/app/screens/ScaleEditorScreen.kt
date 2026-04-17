@@ -1,28 +1,23 @@
 package com.example.skales.app.screens
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,15 +30,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.skales.app.components.PianoKeyboard
@@ -51,14 +42,10 @@ import com.example.skales.app.components.SetPianoRollEditor
 import com.example.skales.app.components.SkalesBackground
 import com.example.skales.app.components.SkalesCircleButton
 import com.example.skales.app.components.SkalesPanel
-import com.example.skales.app.components.SkalesPill
 import com.example.skales.app.components.SkalesSecondaryButton
-import com.example.skales.app.components.SkalesSectionHeader
 import com.example.skales.app.viewmodel.ScaleEditorViewModel
-import com.example.skales.editor.ScaleEditorOps
 import com.example.skales.editor.SetGridOps
 import com.example.skales.model.ScaleSet
-import com.example.skales.model.ScaleSoundKind
 import com.example.skales.player.PlaybackCursor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,8 +55,11 @@ fun ScaleEditorScreen(
     onNavigateBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var dockMode by rememberSaveable { mutableStateOf(EditorDockMode.Playback) }
     val canSave = uiState.isLoaded && uiState.name.isNotBlank() && uiState.sets.any { it.sounds.isNotEmpty() }
+    val pitchScrollState = rememberScrollState()
+    var isPlaybackPanelExpanded by remember { mutableStateOf(false) }
+    var isGridPanelExpanded by remember { mutableStateOf(false) }
+    var isSetsPanelExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -93,39 +83,6 @@ fun ScaleEditorScreen(
                 },
             )
         },
-        bottomBar = {
-            if (uiState.isLoaded) {
-                EditorPlaybackDock(
-                    mode = dockMode,
-                    onModeChange = { dockMode = it },
-                    bpm = uiState.bpm,
-                    cursorLabel = playbackCursorLabel(uiState.playbackCursor),
-                    isPlaying = uiState.isPlaying,
-                    canPlay = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                    canStep = uiState.sets.any { it.sounds.isNotEmpty() } && !uiState.isPlaying,
-                    sets = uiState.sets,
-                    selectedSetIndex = uiState.selectedSetIndex,
-                    canRemovePreCue = uiState.selectedSet?.sounds?.firstOrNull()?.kind == ScaleSoundKind.Cue,
-                    canRemovePostCue = uiState.selectedSet?.sounds?.lastOrNull()?.kind == ScaleSoundKind.Cue,
-                    canClearSelectedSet = uiState.selectedSet?.sounds?.isNotEmpty() == true,
-                    onDecreaseBpm = viewModel::decreaseBpm,
-                    onIncreaseBpm = viewModel::increaseBpm,
-                    onPlay = viewModel::playScale,
-                    onStep = viewModel::stepScale,
-                    onReset = viewModel::resetPlaybackCursor,
-                    onStop = viewModel::stopScale,
-                    onNotePressed = viewModel::onNotePressed,
-                    onSelectSet = viewModel::selectSet,
-                    onAddSet = viewModel::addSet,
-                    onAddChordPreCue = viewModel::addChordPreCueToSelectedSet,
-                    onAddChordPostCue = viewModel::addChordPostCueToSelectedSet,
-                    onRemoveChordPreCue = viewModel::removeChordPreCueFromSelectedSet,
-                    onRemoveChordPostCue = viewModel::removeChordPostCueFromSelectedSet,
-                    onDeleteSet = viewModel::deleteSelectedSet,
-                    onClearSelectedSet = viewModel::clearSelectedSet,
-                )
-            }
-        },
     ) { innerPadding ->
         if (!uiState.isLoaded) {
             SkalesBackground(
@@ -143,12 +100,10 @@ fun ScaleEditorScreen(
         SkalesBackground(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp),
+                .padding(innerPadding),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SkalesPanel {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp)) {
                     OutlinedTextField(
                         value = uiState.name,
                         onValueChange = viewModel::updateName,
@@ -165,453 +120,169 @@ fun ScaleEditorScreen(
                     )
                 }
 
-                SkalesPanel {
-                    SkalesSectionHeader(
-                        title = "Piano roll",
-                        supporting = "Edit one selected set at a time. Use the dock to switch between playback, keyboard, and sets while keeping the piano roll centered.",
-                    )
-                    val selectedSet = uiState.selectedSet ?: ScaleSet(sounds = emptyList())
-                    SetPianoRollEditor(
-                        grid = SetGridOps.toGrid(selectedSet, stepBeats = uiState.snapStepBeats),
-                        onCellTap = viewModel::addNoteToSelectedSetAtPosition,
-                        onNoteMove = viewModel::moveNoteInSelectedSet,
-                        onDeleteNote = viewModel::removeNoteFromSelectedSet,
-                        controls = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SnapChip(
-                                    text = "1/1",
-                                    selected = uiState.snapStepBeats == SetGridOps.CoarseStepBeats,
-                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.CoarseStepBeats) },
-                                )
-                                SnapChip(
-                                    text = "1/2",
-                                    selected = uiState.snapStepBeats == SetGridOps.DefaultStepBeats,
-                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.DefaultStepBeats) },
-                                )
-                                SnapChip(
-                                    text = "1/4",
-                                    selected = uiState.snapStepBeats == SetGridOps.FineStepBeats,
-                                    onClick = { viewModel.setSnapStepBeats(SetGridOps.FineStepBeats) },
-                                )
-                            }
-                        },
+                val selectedSet = uiState.selectedSet ?: ScaleSet(sounds = emptyList())
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
+                        SetPianoRollEditor(
+                            grid = SetGridOps.toGrid(uiState.sets, stepBeats = uiState.snapStepBeats),
+                            selectedSetIndex = uiState.selectedSetIndex,
+                            onSelectSet = viewModel::selectSet,
+                            onCellTap = viewModel::addNoteToSelectedSetAtPosition,
+                            onNoteMove = viewModel::moveNoteInSelectedSet,
+                            onBoundaryMove = viewModel::moveSetBoundary,
+                            onDeleteNote = viewModel::removeNoteFromSelectedSet,
+                            pitchScrollState = pitchScrollState,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        PlaybackOverlay(
+                            bpm = uiState.bpm,
+                            cursor = uiState.playbackCursor,
+                            isPlaying = uiState.isPlaying,
+                            canPlay = uiState.sets.any { it.sounds.isNotEmpty() },
+                            isExpanded = isPlaybackPanelExpanded,
+                            onToggleExpanded = { isPlaybackPanelExpanded = !isPlaybackPanelExpanded },
+                            onPlayToggle = {
+                                if (uiState.isPlaying) viewModel.stopScale() else viewModel.playScale()
+                            },
+                            onStep = viewModel::stepScale,
+                            onReset = viewModel::resetPlaybackCursor,
+                            onDecreaseBpm = viewModel::decreaseBpm,
+                            onIncreaseBpm = viewModel::increaseBpm,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 12.dp, bottom = 80.dp),
+                        )
+                        GridOverlay(
+                            selectedStepBeats = uiState.snapStepBeats,
+                            isExpanded = isGridPanelExpanded,
+                            onToggleExpanded = { isGridPanelExpanded = !isGridPanelExpanded },
+                            onSelectStepBeats = viewModel::setSnapStepBeats,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 12.dp, top = 80.dp),
+                        )
+                        SetsOverlay(
+                            sets = uiState.sets,
+                            selectedSetIndex = uiState.selectedSetIndex,
+                            isExpanded = isSetsPanelExpanded,
+                            canRemovePreCue = selectedSet.sounds.firstOrNull()?.kind == com.example.skales.model.ScaleSoundKind.Cue,
+                            canRemovePostCue = selectedSet.sounds.lastOrNull()?.kind == com.example.skales.model.ScaleSoundKind.Cue,
+                            canClearSelectedSet = selectedSet.sounds.isNotEmpty(),
+                            onToggleExpanded = { isSetsPanelExpanded = !isSetsPanelExpanded },
+                            onSelectSet = viewModel::selectSet,
+                            onAddSet = viewModel::addSet,
+                            onDeleteSelectedSet = viewModel::deleteSelectedSet,
+                            onClearSelectedSet = viewModel::clearSelectedSet,
+                            onAddPreCue = viewModel::addChordPreCueToSelectedSet,
+                            onAddPostCue = viewModel::addChordPostCueToSelectedSet,
+                            onRemovePreCue = viewModel::removeChordPreCueFromSelectedSet,
+                            onRemovePostCue = viewModel::removeChordPostCueFromSelectedSet,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 12.dp),
+                        )
+                    }
+                    PianoKeyboard(
+                        onNotePressed = viewModel::onNotePressed,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding(),
+                        whiteKeyHeight = 188.dp,
+                        blackKeyHeight = 116.dp,
+                        scrollState = pitchScrollState,
                     )
                 }
-
             }
         }
     }
 }
 
 private val SaveActionColor = Color(0xFF2E7D32)
-private val SetCardBodyMinHeight = 68.dp
 
 @Composable
-private fun EditorPlaybackDock(
-    mode: EditorDockMode,
-    onModeChange: (EditorDockMode) -> Unit,
+private fun PlaybackOverlay(
     bpm: Int,
-    cursorLabel: String,
+    cursor: PlaybackCursor,
     isPlaying: Boolean,
     canPlay: Boolean,
-    canStep: Boolean,
-    sets: List<ScaleSet>,
-    selectedSetIndex: Int,
-    canRemovePreCue: Boolean,
-    canRemovePostCue: Boolean,
-    canClearSelectedSet: Boolean,
-    onDecreaseBpm: () -> Unit,
-    onIncreaseBpm: () -> Unit,
-    onPlay: () -> Unit,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onPlayToggle: () -> Unit,
     onStep: () -> Unit,
     onReset: () -> Unit,
-    onStop: () -> Unit,
-    onNotePressed: (Int) -> Unit,
-    onSelectSet: (Int) -> Unit,
-    onAddSet: () -> Unit,
-    onAddChordPreCue: () -> Unit,
-    onAddChordPostCue: () -> Unit,
-    onRemoveChordPreCue: () -> Unit,
-    onRemoveChordPostCue: () -> Unit,
-    onDeleteSet: () -> Unit,
-    onClearSelectedSet: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-        tonalElevation = 0.dp,
-        shadowElevation = 4.dp,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-        ) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), thickness = 1.dp)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DockModeChip(
-                        text = "Playback",
-                        selected = mode == EditorDockMode.Playback,
-                        onClick = { onModeChange(EditorDockMode.Playback) },
-                    )
-                    DockModeChip(
-                        text = "Keyboard",
-                        selected = mode == EditorDockMode.Keyboard,
-                        onClick = { onModeChange(EditorDockMode.Keyboard) },
-                    )
-                    DockModeChip(
-                        text = "Sets",
-                        selected = mode == EditorDockMode.Sets,
-                        onClick = { onModeChange(EditorDockMode.Sets) },
-                    )
-                }
-
-                if (mode == EditorDockMode.Playback) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(text = "Playback", style = MaterialTheme.typography.labelLarge)
-                            Text(
-                                text = cursorLabel,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "$bpm BPM",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            SkalesCircleButton(label = "-", onClick = onDecreaseBpm, size = 42.dp)
-                            SkalesCircleButton(label = "+", onClick = onIncreaseBpm, size = 42.dp)
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        PlaybackTransportButton(
-                            isStop = isPlaying,
-                            onClick = if (isPlaying) onStop else onPlay,
-                            enabled = if (isPlaying) true else canPlay,
-                        )
-                        Spacer(modifier = Modifier.size(2.dp))
-                        SkalesSecondaryButton(text = "Step", onClick = onStep, enabled = canStep)
-                        SkalesSecondaryButton(text = "Reset", onClick = onReset)
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                } else {
-                    when (mode) {
-                        EditorDockMode.Keyboard -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                            ) {
-                                EditorActionChip(text = "New set", onClick = onAddSet)
-                            }
-                            PianoKeyboard(
-                                onNotePressed = onNotePressed,
-                                modifier = Modifier.fillMaxWidth(),
-                                whiteKeyHeight = 160.dp,
-                                blackKeyHeight = 96.dp,
-                            )
-                        }
-
-                        EditorDockMode.Sets -> {
-                            Text(
-                                text = "Sets",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                            Text(
-                                text = "Keep one set selected while editing the piano roll.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Row(
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                sets.forEachIndexed { index, set ->
-                                    SetSelectorPill(
-                                        setIndex = index,
-                                        set = set,
-                                        isSelected = index == selectedSetIndex,
-                                        onSelect = { onSelectSet(index) },
-                                    )
-                                }
-                            }
-                            val selectedSet = sets.getOrNull(selectedSetIndex) ?: ScaleSet(sounds = emptyList())
-                            SetCard(
-                                setIndex = selectedSetIndex,
-                                set = selectedSet,
-                                isSelected = true,
-                                onSelect = { },
-                                showSelectionPill = false,
-                            )
-                            Row(
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                EditorActionChip(text = "New set", onClick = onAddSet)
-                                EditorActionChip(text = "Add pre cue", onClick = onAddChordPreCue)
-                                EditorActionChip(text = "Add post cue", onClick = onAddChordPostCue)
-                                EditorActionChip(
-                                    text = "Remove pre cue",
-                                    onClick = onRemoveChordPreCue,
-                                    enabled = canRemovePreCue,
-                                )
-                                EditorActionChip(
-                                    text = "Remove post cue",
-                                    onClick = onRemoveChordPostCue,
-                                    enabled = canRemovePostCue,
-                                )
-                                EditorActionChip(text = "Delete set", onClick = onDeleteSet, enabled = sets.isNotEmpty())
-                                EditorActionChip(
-                                    text = "Clear selected set",
-                                    onClick = onClearSelectedSet,
-                                    enabled = canClearSelectedSet,
-                                )
-                            }
-                        }
-
-                        EditorDockMode.Playback -> Unit
-                    }
-                }
-            }
-        }
-    }
-}
-
-private enum class EditorDockMode {
-    Playback,
-    Keyboard,
-    Sets,
-}
-
-@Composable
-private fun PlaybackTransportButton(
-    isStop: Boolean,
-    onClick: () -> Unit,
-    enabled: Boolean,
+    onDecreaseBpm: () -> Unit,
+    onIncreaseBpm: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerColor = if (enabled) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-    }
-    val contentColor = if (enabled) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f)
-    }
-
-    Box(
-        modifier = modifier
-            .size(62.dp)
-            .clip(CircleShape)
-            .border(
-                width = 1.dp,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                } else {
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
-                },
-                shape = CircleShape,
-            )
-            .background(containerColor, CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Canvas(modifier = Modifier.size(24.dp)) {
-            if (isStop) {
-                val inset = size.minDimension * 0.2f
-                drawRect(
-                    color = contentColor,
-                    topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
-                    size = androidx.compose.ui.geometry.Size(size.width - (inset * 2), size.height - (inset * 2)),
-                )
-            } else {
-                val path = Path().apply {
-                    moveTo(size.width * 0.28f, size.height * 0.18f)
-                    lineTo(size.width * 0.28f, size.height * 0.82f)
-                    lineTo(size.width * 0.8f, size.height * 0.5f)
-                    close()
-                }
-                drawPath(path = path, color = contentColor)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DockModeChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    AssistChip(
-        onClick = onClick,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
-        ),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
-            labelColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        label = { Text(text) },
-    )
-}
-
-@Composable
-private fun SnapChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    AssistChip(
-        onClick = onClick,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
-        ),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
-            labelColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        label = { Text(text) },
-    )
-}
-
-@Composable
-private fun SetSelectorPill(
-    setIndex: Int,
-    set: ScaleSet,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-) {
-    val noteCount = set.sounds.count { it.kind == ScaleSoundKind.Note }
-    val cueCount = set.sounds.count { it.kind == ScaleSoundKind.Cue }
-    AssistChip(
-        onClick = onSelect,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
-        ),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
-            labelColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        label = {
-            Text("Set ${setIndex + 1}  $noteCount notes${if (cueCount > 0) "  $cueCount cue" else ""}")
-        },
-    )
-}
-
-@Composable
-private fun SetCard(
-    setIndex: Int,
-    set: ScaleSet,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-    showSelectionPill: Boolean = true,
-) {
-    SkalesPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Set ${setIndex + 1}${set.breakAfterBeats?.let { "  (+${it} beat break)" } ?: ""}",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            if (showSelectionPill) {
-                SkalesPill(text = if (isSelected) "Selected" else "Tap to select", highlighted = isSelected)
-            }
-        }
-        if (set.sounds.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = SetCardBodyMinHeight),
-                contentAlignment = Alignment.CenterStart,
+        if (isExpanded) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                tonalElevation = 0.dp,
+                shadowElevation = 6.dp,
             ) {
-                Text(
-                    text = "Empty set",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = SetCardBodyMinHeight),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    set.sounds.forEachIndexed { soundIndex, sound ->
-                        val prefix = when {
-                            sound.kind == ScaleSoundKind.Cue && soundIndex == 0 -> "Pre"
-                            sound.kind == ScaleSoundKind.Cue && soundIndex == set.sounds.lastIndex -> "Post"
-                            sound.kind == ScaleSoundKind.Cue -> "Cue"
-                            else -> "N"
-                        }
-                        AssistChip(
-                            onClick = onSelect,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                } else {
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
-                                },
-                            ),
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-                                },
-                                labelColor = MaterialTheme.colorScheme.onSurface,
-                            ),
-                            label = {
-                                Text("${prefix}: ${ScaleEditorOps.labelForSound(sound)}")
-                            },
+                    Text(
+                        text = playbackCursorLabel(cursor),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "$bpm BPM",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
+                        SkalesCircleButton(label = "-", onClick = onDecreaseBpm, size = 40.dp)
+                        SkalesCircleButton(label = "+", onClick = onIncreaseBpm, size = 40.dp)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OverlayActionChip(text = "Step", onClick = onStep, enabled = !isPlaying && canPlay)
+                        OverlayActionChip(text = "Reset", onClick = onReset)
                     }
                 }
             }
         }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            SkalesCircleButton(
+                label = if (isExpanded) "×" else "···",
+                onClick = onToggleExpanded,
+                size = 48.dp,
+                highlighted = isExpanded,
+            )
+            SkalesCircleButton(
+                label = if (isPlaying) "||" else ">",
+                onClick = onPlayToggle,
+                size = 62.dp,
+                highlighted = isPlaying,
+                enabled = canPlay || isPlaying,
+            )
+        }
     }
 }
 
 @Composable
-private fun EditorActionChip(
+private fun OverlayActionChip(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
@@ -626,7 +297,7 @@ private fun EditorActionChip(
         colors = AssistChipDefaults.assistChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
             labelColor = MaterialTheme.colorScheme.onSurface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
             disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         ),
         label = { Text(text) },
@@ -635,8 +306,226 @@ private fun EditorActionChip(
 
 private fun playbackCursorLabel(cursor: PlaybackCursor): String {
     return if (cursor.isFinished) {
-        "Cursor: finished"
+        "Finished"
     } else {
-        "Cursor: set ${cursor.setIndex + 1}, sound ${cursor.soundIndexInSet + 1}"
+        "Set ${cursor.setIndex + 1}, sound ${cursor.soundIndexInSet + 1}"
+    }
+}
+
+@Composable
+private fun GridOverlay(
+    selectedStepBeats: Float,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSelectStepBeats: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isExpanded) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                tonalElevation = 0.dp,
+                shadowElevation = 6.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Grid",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GridStepChip(
+                            text = "1/1",
+                            selected = selectedStepBeats == SetGridOps.CoarseStepBeats,
+                            onClick = { onSelectStepBeats(SetGridOps.CoarseStepBeats) },
+                        )
+                        GridStepChip(
+                            text = "1/2",
+                            selected = selectedStepBeats == SetGridOps.DefaultStepBeats,
+                            onClick = { onSelectStepBeats(SetGridOps.DefaultStepBeats) },
+                        )
+                        GridStepChip(
+                            text = "1/4",
+                            selected = selectedStepBeats == SetGridOps.FineStepBeats,
+                            onClick = { onSelectStepBeats(SetGridOps.FineStepBeats) },
+                        )
+                    }
+                }
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            SkalesCircleButton(
+                label = if (isExpanded) "×" else "#",
+                onClick = onToggleExpanded,
+                size = 48.dp,
+                highlighted = isExpanded,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GridStepChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    AssistChip(
+        onClick = onClick,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
+        ),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            labelColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        ),
+        label = { Text(text) },
+    )
+}
+
+@Composable
+private fun SetsOverlay(
+    sets: List<ScaleSet>,
+    selectedSetIndex: Int,
+    isExpanded: Boolean,
+    canRemovePreCue: Boolean,
+    canRemovePostCue: Boolean,
+    canClearSelectedSet: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSelectSet: (Int) -> Unit,
+    onAddSet: () -> Unit,
+    onDeleteSelectedSet: () -> Unit,
+    onClearSelectedSet: () -> Unit,
+    onAddPreCue: () -> Unit,
+    onAddPostCue: () -> Unit,
+    onRemovePreCue: () -> Unit,
+    onRemovePostCue: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isExpanded) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                tonalElevation = 0.dp,
+                shadowElevation = 6.dp,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 240.dp, max = 300.dp)
+                        .heightIn(max = 380.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "Sets",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OverlayActionChip(text = "New", onClick = onAddSet)
+                        OverlayActionChip(text = "Delete", onClick = onDeleteSelectedSet, enabled = sets.size > 1)
+                        OverlayActionChip(text = "Clear", onClick = onClearSelectedSet, enabled = canClearSelectedSet)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OverlayActionChip(
+                            text = if (canRemovePreCue) "Remove pre" else "Add pre",
+                            onClick = if (canRemovePreCue) onRemovePreCue else onAddPreCue,
+                        )
+                        OverlayActionChip(
+                            text = if (canRemovePostCue) "Remove post" else "Add post",
+                            onClick = if (canRemovePostCue) onRemovePostCue else onAddPostCue,
+                        )
+                    }
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        itemsIndexed(sets) { index, set ->
+                            SetListItem(
+                                setIndex = index,
+                                set = set,
+                                selected = index == selectedSetIndex,
+                                onClick = { onSelectSet(index) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            SkalesCircleButton(
+                label = if (isExpanded) "×" else "S",
+                onClick = onToggleExpanded,
+                size = 48.dp,
+                highlighted = isExpanded,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SetListItem(
+    setIndex: Int,
+    set: ScaleSet,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val noteCount = set.sounds.count { it.kind == com.example.skales.model.ScaleSoundKind.Note }
+    val cueCount = set.sounds.count { it.kind == com.example.skales.model.ScaleSoundKind.Cue }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+        },
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "Set ${setIndex + 1}",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "$noteCount notes${if (cueCount > 0) "  $cueCount cue" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = setSummary(set),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+private fun setSummary(set: ScaleSet): String {
+    if (set.sounds.isEmpty()) return "Empty set"
+    return set.sounds.take(4).joinToString("  ") { sound ->
+        val prefix = if (sound.kind == com.example.skales.model.ScaleSoundKind.Cue) "Cue" else "N"
+        "$prefix ${com.example.skales.editor.ScaleEditorOps.labelForSound(sound)}"
     }
 }

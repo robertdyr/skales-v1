@@ -10,6 +10,11 @@ import com.example.skales.model.ScaleSoundKind
 object ScaleEditorOps {
     fun defaultSets(): List<ScaleSet> = listOf(ScaleSet(sounds = emptyList()))
 
+    fun toSingleWorkingSet(sets: List<ScaleSet>): List<ScaleSet> {
+        val flattenedSounds = sets.flatMap { it.sounds }
+        return listOf(ScaleSet(sounds = flattenedSounds))
+    }
+
     fun normalizeSets(sets: List<ScaleSet>): List<ScaleSet> {
         return if (sets.isEmpty()) defaultSets() else sets
     }
@@ -116,9 +121,16 @@ object ScaleEditorOps {
         column: Int,
         stepBeats: Float,
     ): List<ScaleSet> {
-        return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.moveNote(set, soundId, midi, column, stepBeats)
-        }
+        return SetGridOps.moveSoundInTimeline(sets, selectedSetIndex, soundId, midi, column, stepBeats)
+    }
+
+    fun moveSetBoundary(
+        sets: List<ScaleSet>,
+        targetSetIndex: Int,
+        column: Int,
+        stepBeats: Float,
+    ): List<ScaleSet> {
+        return SetGridOps.moveSetBoundaryInTimeline(sets, targetSetIndex, column, stepBeats)
     }
 
     fun removeNoteFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, soundId: String, stepBeats: Float): List<ScaleSet> {

@@ -42,7 +42,7 @@ Current focus:
 
 - editor-first scale authoring
 - partial-set inference and reinference
-- active-set piano-roll editing with visible note spacing
+- shared-timeline piano-roll editing with visible note spacing
 - clear correction flow before save
 - smooth playback of saved scales
 
@@ -72,6 +72,8 @@ The app should help the user:
 
 - create a scale manually
 - place and drag notes on a piano-roll grid with clear spacing
+- group sounds into sets while still seeing the whole exercise on one shared timeline
+- edit grouped cue sounds as first-class events
 - seed one or more sets and infer the rest
 - inspect and correct a draft before saving
 - replay scales repeatedly for practice
@@ -111,7 +113,7 @@ flowchart LR
 
 This is the current priority path. The user seeds one or more known sets, the app infers the rest, and the user tightens the result until it is ready to save.
 
-In practice, that tightening happens in a selected-set piano roll with configurable snap sizes.
+In practice, that tightening now happens in a shared piano-roll timeline with configurable snap sizes, visible set boundaries, and a selected set that owns editing actions.
 
 ### Flow C: Manual Creation (Direct)
 
@@ -152,6 +154,7 @@ These should remain stable unless there is a strong reason to change them:
 
 - `Scale` is the final saved playback object
 - `ScaleSet` is one repeatable exercise unit. A `Scale` consists of many `ScaleSet`s. 
+- `ScaleSet` remains grouping structure, but timing is represented only through per-sound spacing
 - users should review inferred results before saving when confidence is uncertain
 - audio analysis should produce evidence, not just a black-box answer
 - scale completion should be a separate inference step, not hidden inside audio analysis
@@ -164,8 +167,9 @@ These should remain stable unless there is a strong reason to change them:
 Implemented now:
 
 - scale library screen
-- manual editor with selected-set piano roll
-- sticky bottom playback dock in editor
+- manual editor with shared-timeline piano roll
+- floating playback/grid/set overlays in editor
+- attached piano keyboard under the editor grid
 - scale player
 - local persistence with Room
 - deterministic analysis pipeline for note evidence extraction
@@ -175,9 +179,9 @@ MVP gaps:
 
 - locked-set reinference flow in the editor
 - clearer inferred-vs-confirmed set state inside the editor
-- richer timing inference between sounds and sets
+- richer inference flow on top of the new shared timeline editor
 - playback preview inside the review flow
-- polished final UI/UX
+- polish around shared-timeline set editing and grouped cue rendering
 
 Later phases:
 

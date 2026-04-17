@@ -4,8 +4,6 @@ import com.example.skales.model.Scale
 import com.example.skales.model.ScaleSoundKind
 
 private const val DefaultNoteBreakAfterBeats = 1f
-private const val DefaultCueBreakAfterBeats = 2f
-private const val DefaultSetBreakAfterBeats = 1f
 
 enum class PlaybackDirection {
     Forward,
@@ -56,15 +54,10 @@ class ScaleStepper(
         }
 
         val soundBreak = sound.breakAfterBeats ?: defaultBreakAfter(sound.kind)
-        val setBreak = if (isLastSoundInSet) {
-            set.breakAfterBeats ?: DefaultSetBreakAfterBeats
-        } else {
-            0f
-        }
 
         return StepResult(
             nextCursor = nextCursor,
-            waitBeats = if (nextCursor.isFinished) 0f else soundBreak + setBreak,
+            waitBeats = if (nextCursor.isFinished) 0f else soundBreak,
             playedSetIndex = currentCursor.setIndex,
             playedSoundIndex = currentCursor.soundIndexInSet,
         )
@@ -72,7 +65,7 @@ class ScaleStepper(
 
     private fun defaultBreakAfter(kind: ScaleSoundKind): Float {
         return when (kind) {
-            ScaleSoundKind.Cue -> DefaultCueBreakAfterBeats
+            ScaleSoundKind.Cue -> DefaultNoteBreakAfterBeats
             ScaleSoundKind.Note -> DefaultNoteBreakAfterBeats
         }
     }
