@@ -2,11 +2,11 @@
 
 ## Purpose
 
-The editor is the main authoring, correction, and future reinference surface.
+The editor screen is the main surface for building and correcting a scale.
 
-It is no longer a card-with-dock layout. The piano roll and keyboard are now the primary surface, and everything else should stay secondary to that editing area.
+The piano roll and keyboard are the primary UI. Playback, grid controls, and set controls support that surface and should stay secondary.
 
-## Current Layout
+## Layout
 
 ```text
 +---------------- top bar ----------------+
@@ -14,136 +14,112 @@ It is no longer a card-with-dock layout. The piano roll and keyboard are now the
 +----------------------------------------+
 
 +--------------- metadata ----------------+
-| scale name field only                   |
+| scale name                             |
 +----------------------------------------+
 
 +------------- shared timeline -----------+
 | full-height piano roll                  |
-| all sets rendered on one grid           |
+| all sets on one grid                    |
 | time runs upward                        |
 | pitch runs left-right                   |
-| selected set is editable                |
-| other sets stay visible as context      |
-| set boundaries are visual only          |
-| floating right controls: play/grid/set  |
+| floating controls: play / grid / sets   |
 +----------------------------------------+
 
 +--------------- keyboard ----------------+
 | attached directly under the grid        |
 | shares horizontal pitch scroll          |
-| sits near bottom safe area              |
 +----------------------------------------+
 ```
 
 ## UX Priorities
 
-1. keep the piano roll and keyboard as the dominant surface
-2. make set grouping visible without splitting editing into separate screens
-3. keep playback, grid controls, and set controls reachable without restoring the old dock
-4. make cue sounds first-class editing items rather than special hidden metadata
-5. make spacing between sounds, including across set boundaries, readable and editable
-6. avoid introducing DAW-level complexity for v1
-7. keep save reachable in the app bar
+1. keep the piano roll and keyboard dominant
+2. keep set structure visible without splitting editing into separate panes
+3. make timing edits readable and direct
+4. keep cues and grouped sounds editable as real events
+5. avoid DAW-style complexity
 
-## Core Interaction Model
+## Interaction Model
 
-The editor now works as one shared timeline with set grouping overlaid on top.
+The screen shows one shared timeline for the entire scale.
 
-- all sets are shown on the same piano-roll grid
+- all sets are visible on the same grid
 - the selected set is highlighted and editable
-- non-selected sets are still visible in dimmer colors
-- set boundaries are derived from the first sound of each set
-- tapping a sound in another set makes that set the working set immediately
-- note taps are owned by note blocks, not by opening the sets overlay first
-- separator lines are the primary control for between-set spacing
-- dragging the separator moves the start of that set and later sets together
-- dragging a note inside its set does not move the separator by default
-- dragging a set-A sound across the separator can push the separator upward as a special case
-- dragging any sound in a later set moves that set's separator with it
-- sounds cannot be dragged past neighboring sounds in a way that breaks ordering
+- other sets stay visible as context
+- tapping a sound in another set selects that set
 - keyboard input appends to the selected set
 
-## Timing Model
+## Set Boundaries
 
-For v1, timing stays intentionally simple.
+Set boundaries are visible grouping markers, not separate timing objects.
 
-- every `ScaleSound` has one timing value: `breakAfterBeats`
-- all sounds are treated as having the same played length
-- there is no separate duration editing yet
-- there is no velocity or articulation editing
-- there is no set-level break anymore
+- a set starts where its first sound starts
+- the separator line reflects that start
+- dragging the separator moves that set start explicitly
+- dragging the first sound of a later set also moves that set start
+- dragging later sounds in that set should not move the separator
 
-Important consequence:
+## Timing Behavior
 
-- the visible gap between two sounds is controlled by the earlier sound's `breakAfterBeats`
-- the gap between the last sound of set A and the first sound of set B is still represented by the last sound of set A
-- moving a separator later or earlier should increase or decrease the previous sound's `breakAfterBeats`
-- moving a later-set sound moves that set start with it, which also changes the previous sound's `breakAfterBeats`
+For v1, only one timing value is exposed:
 
-## Sound Rendering Rules
+- `breakAfterBeats`
 
-Each `ScaleSound` is one timeline event.
+This means:
 
-- normal note sound with one pitch: square block
-- cue sound with one pitch: circular block
-- cue sound with multiple pitches: grouped circles at the same time position
-- multi-note sounds move together as one event
-- vertical drag transposes all notes in that sound together
-- horizontal/temporal drag changes the event's position on the shared timeline
+- the visible gap after a sound is owned by that sound
+- the gap across a set boundary is still owned by the earlier sound
+- moving a sound rewrites adjacent spacing based on the new shared timeline order
 
-## Grid Rule
+Expected editing behavior:
 
-The `Grid` floating control changes editor snapping only.
+- dragging a later sound within a set changes spacing inside that set
+- dragging the first sound of a later set changes both the set start and the previous cross-set gap
+- dragging a separator changes the same boundary explicitly
+- changing grid snap affects placement and dragging only, not saved timing globally
 
-- `1/2` is the default snap
-- `1/1` and `1/4` are optional snaps
-- changing snap affects placement and drag quantization only
-- changing snap must not rewrite saved timing automatically
+## Sound Rendering
 
-## Playback Rule
+- note sound: square block
+- cue sound: circular block
+- grouped cue: multiple circles at one time position
+- multi-note sound: one event that moves together
+- vertical drag transposes the whole sound together
 
-Playback is a floating overlay, not a dock.
+## Controls
 
-- primary visible playback action is play/stop
-- secondary playback actions live in a compact popout
-- cue sounds do not get a hidden longer fallback pause anymore
-- what the user edits in the grid should match what they hear in playback timing
+### Playback
 
-## Sets Rule
+- playback lives in a floating overlay, not a dock
+- the main action is play and stop
+- playback should match the timing the user sees in the grid
 
-Sets are still part of the model and the product, but they are no longer isolated piano-roll workspaces.
+### Grid
 
-- the set overlay selects the active set
-- tapping a sound in another set should also select that set directly from the timeline
-- the active set determines which sounds the keyboard appends to
-- the active set determines which sounds can be dragged
-- boundaries are visual indicators of where sets begin
-- sets do not own independent hidden spacing anymore beyond the per-sound spacing that already exists
+- snap options are `1/1`, `1/2`, and `1/4`
+- `1/2` is the default
+- snap affects placement and drag quantization only
 
-## Keyboard Rule
+### Sets
 
-- keyboard is attached directly below the grid
-- keyboard and grid share horizontal pitch scroll
-- the keyboard should never bring back the old bottom dock architecture
-- leave a small safe-space above the home indicator
+- the sets overlay selects the active set
+- it also exposes set-level actions such as add, delete, clear, and cue actions
+- sets remain real structure even though editing happens on one shared grid
 
-## Explicit V1 Non-Goals
+## Non-Goals
 
-Do not add these unless there is a strong reason:
+Do not add by default:
 
 - per-sound duration editing
-- velocity / strike intensity editing
-- articulation presets
-- a full DAW-style resize-and-envelope workflow
-- hidden special timing rules for cues
+- velocity or articulation editing
+- full DAW-style resizing tools
+- hidden timing rules for cues
 
-## Future Reinference Hooks
+## Future Hooks
 
-The editor is still expected to become the reinference surface later.
+Later reinference work will likely add:
 
-Likely future additions:
-
-- inferred vs confirmed set state in the sets overlay
-- lock/unlock set controls
-- infer-missing-sets action
-- stronger preview of inferred boundaries and grouped sounds
+- inferred vs confirmed set state
+- lock and unlock controls
+- infer-missing-sets actions
+- better draft review support inside the editor

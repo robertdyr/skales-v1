@@ -2,154 +2,119 @@
 
 ## Responsibility
 
-The editor is the surface for creating, correcting, and eventually guiding inference of a `Scale`.
+The editor is the authoring and correction surface for a `Scale`.
 
-It currently serves three roles:
+It owns:
 
-1. correction of manually entered or inferred scales
-2. manual creation
-3. future inference seeding
+- manual scale creation
+- correction of saved or inferred scales
+- projection of `Scale -> ScaleSet -> ScaleSound` into an editable piano-roll view
 
-## External Contract
+It does not own:
 
-```mermaid
-flowchart LR
-    State["current draft/manual state"] --> Editor["editor"]
-    Action["edit action"] --> Editor
-    Editor --> Scale["final Scale"]
-```
+- inference logic
+- audio analysis
+- persistence details
 
-## Current Architectural Shape
-
-```mermaid
-flowchart LR
-    Draft["current editor state"] --> EditOps["edit operations"] --> NextDraft["next editor state"]
-    Action2["edit action"] --> EditOps
-    EditOps --> Saveable["saveable Scale"]
-```
-
-## Current Code Mapping
+## Code Mapping
 
 - `editor/ScaleEditorOps.kt`
 - `editor/SetGridOps.kt`
 - `app/viewmodel/ScaleEditorViewModel.kt`
 - `app/screens/ScaleEditorScreen.kt`
-- `app/components/PianoKeyboard.kt`
 - `app/components/SetPianoRollEditor.kt`
+- `app/components/PianoKeyboard.kt`
 
-Current split:
+Split of responsibility:
 
-- `editor/` owns pure editing operations and grid projection logic
-- `app/viewmodel/ScaleEditorViewModel` owns editor screen/session state
-- `app/` owns UI components and navigation
+- `editor/` owns pure editing and timeline projection logic
+- `ScaleEditorViewModel` owns editor session state
+- `app/screens` and `app/components` own UI rendering and input
 
-## Editor Model
+## Model
 
-The editor is no longer modeled as one isolated piano roll per active set.
+The saved model stays:
 
-The implemented interaction model is:
+```text
+Scale -> List<ScaleSet> -> List<ScaleSound>
+```
 
-- one shared timeline grid for all sets
-- one selected set for editing ownership
-- other sets rendered as visible context
-- floating overlays for playback, grid controls, and sets
-- attached keyboard under the roll, sharing pitch scroll with the grid
+The editor presents that model as one shared piano-roll timeline.
 
-This is important:
+That means:
 
-- the editor should feel like one timeline with group boundaries
-- sets are still real domain structure
-- set boundaries are visual/grouping structure, not separate timing containers
+- all sets are shown on one grid
+- one set is selected for editing ownership
+- non-selected sets remain visible as context
+- set boundaries are derived from the first sound of each set
 
-## Timing Rule
+The grid is a projection of the saved model, not a second persisted model.
 
-For v1, timing is intentionally reduced to one dimension:
+## Timing
+
+For v1, timing is intentionally simple.
 
 - `ScaleSound.breakAfterBeats` is the only editable spacing value
-- all sounds are treated as having the same played duration
-- there is no velocity or articulation editing
-- there is no set-level break anymore
+- all sounds are treated as having the same played length
+- there is no set-level break field
 
-This means:
+The key rule is:
 
-- spacing between any two adjacent sounds is owned by the earlier sound
-- that includes spacing across a set boundary
-- moving a set boundary later should increase the `breakAfterBeats` of the last sound of the previous set
-- moving a set boundary earlier should decrease that same previous break
+- spacing between two adjacent sounds is owned by the earlier sound
 
-The editor now needs to think in timeline-adjacent sound relationships even when the affected sounds belong to different sets.
+That includes spacing across a set boundary.
 
-## Grid Projection Rule
+So:
 
-The grid is a projection of the set/sound model, not a second saved model.
+- the gap between the last sound of set A and the first sound of set B is stored on the last sound of set A
+- moving a set start later increases that previous break
+- moving a set start earlier decreases that previous break
 
-Projection requirements:
+## Shared Timeline Rules
 
-- render all sounds from all sets on one timeline
-- keep set membership for coloring, selection, and overlays
-- preserve multi-note sounds as one event with multiple visible pitches
-- preserve `ScaleSoundKind` for cue vs note rendering
+- sets remain real grouping structure
+- the editor behaves like one timeline with visible set boundaries
+- the boundary of a set is the start time of that set's first sound
+- cues and grouped sounds remain first-class events
 
-Current rendering approach:
+When the user edits the grid, timing is rebuilt from the resulting timeline order and then written back into the owning sets.
+
+## Editing Rules
+
+- only the selected set is directly editable
+- tapping a sound in another set switches selection to that set
+- dragging a sound usually changes only that sound's position and local spacing
+- dragging the first sound of a later set changes that set's start because it defines the boundary
+- dragging a separator is the explicit control for moving a set boundary
+
+Within a set, normal note drags should not move the boundary unless the dragged sound is the first sound of that set.
+
+## Rendering Rules
 
 - note sound: square block
 - cue sound: circular block
-- multi-note cue: grouped circles that move together
+- multi-note sound: one event with multiple visible pitches
+- grouped sounds transpose together when dragged vertically
 
-## Rebuild Rule
+## Non-Goals
 
-When the user moves a sound in the shared grid:
+The editor should not become a DAW.
 
-- the edit should be interpreted on the shared timeline
-- timing deltas should be rebuilt from adjacent sounds across the whole timeline
-- rebuilt `breakAfterBeats` values should then be written back into the saved `ScaleSet -> ScaleSound` structure
-
-This shared-timeline rebuild behavior is what allows cross-set spacing edits without reintroducing set-level break fields.
-
-## Selection And Ownership Rule
-
-- selected set controls which sounds are editable
-- non-selected sets remain visible but are not directly draggable
-- tapping a sound in another set should switch the working set directly from the timeline
-- the set boundary is effectively where that set's first sound begins
-- separator dragging is the primary explicit control for cross-set spacing
-- dragging within a set should keep the separator stable unless the drag is one of the explicit boundary-moving cases
-
-## What The Editor Must Not Become
-
-The current product direction is explicitly not a mini DAW.
-
-Avoid adding by default:
+Do not add by default:
 
 - per-sound duration editing
 - velocity editing
-- free articulation/envelope tools
-- hidden cue-specific timing behaviors
-- a second independent timeline model separate from the saved scale model
+- articulation tools
+- hidden cue-specific timing rules
+- a second saved timeline model
 
-## Inference Role
+## Future Role
 
-The editor should still become the seed-and-correct surface for inference later.
+The editor is still the expected correction surface for later reinference work.
 
-Target loop:
-
-```mermaid
-flowchart LR
-    Seed["manual seed"] --> EditorHandoff["Editor"] --> Infer["infer"] --> EditorHandoff
-    EditorHandoff --> Save["save"]
-```
-
-Likely future additions:
+Likely additions later:
 
 - inferred vs confirmed set state
-- lock/unlock set controls
-- infer missing sets
-- better candidate summary/handoff inside the sets overlay
-
-## What The Editor Must Not Know
-
-- how pitch detection works
-- how audio files are imported
-- how candidate ranking is computed
-
-The editor can request inference, but guessing belongs in `infer`.
+- lock and unlock controls for sets
+- infer-missing-sets actions
+- better review handoff for inferred drafts
