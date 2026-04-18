@@ -183,6 +183,12 @@ MVP gaps:
 - playback preview inside the review flow
 - polish around shared-timeline set editing and grouped cue rendering
 
+Current inference direction:
+
+- editor inference should start with small reviewable suggestions rather than bulk generation by default
+- confirmed user-authored sets should act as anchors inside a larger possible exercise
+- later range fill may generate sets before or after the currently confirmed region
+
 Later phases:
 
 - microphone recording flow

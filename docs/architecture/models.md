@@ -61,6 +61,12 @@ Important details:
 - `breakAfterBeats` controls the spacing after this sound
 - for v1, all sounds are treated as having the same played duration; only the spacing to the next sound is modeled
 
+This model is intentionally event-based first.
+
+- `ScaleSound` represents one shared start time
+- all notes inside that sound are played together as one event
+- future editor work may introduce note-level identity inside a sound, but that does not change the event-level meaning of `ScaleSound`
+
 ## PlaybackTiming Model
 
 ```kotlin
@@ -116,9 +122,12 @@ Current product decision:
 That means:
 
 - a cue can contain multiple notes played together
+- a normal note sound can also contain multiple notes if the exercise requires a grouped event
 - the editor should render all pitches in that sound
 - dragging the sound should transpose all of its pitches together
 - grouped sounds should keep one shared start time and one shared `breakAfterBeats`
+
+This grouped-event model is important for future inferred cue chords and other inferred simultaneous sounds.
 
 ## Note Representation
 
