@@ -15,7 +15,6 @@ class Converters {
             sets.forEach { set ->
                 put(
                     JSONObject().apply {
-                        put("breakAfterBeats", set.breakAfterBeats?.toDouble() ?: JSONObject.NULL)
                         put(
                             "sounds",
                             JSONArray().apply {
@@ -67,7 +66,6 @@ class Converters {
                         breakAfterBeats = soundJson.nullableFloat("breakAfterBeats"),
                     )
                 },
-                breakAfterBeats = setJson.nullableFloat("breakAfterBeats"),
             )
         }
     }

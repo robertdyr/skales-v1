@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The editor is the correction, authoring, and reinference workspace.
+The editor screen is the main surface for building and correcting a scale.
 
-It should feel functional, structured, and easy to understand even when a scale has multiple sets.
+The piano roll and keyboard are the primary UI. Playback, grid controls, and set controls support that surface and should stay secondary.
 
 ## Layout
 
@@ -14,117 +14,112 @@ It should feel functional, structured, and easy to understand even when a scale 
 +----------------------------------------+
 
 +--------------- metadata ----------------+
-| scale name field only                   |
+| scale name                             |
 +----------------------------------------+
 
-+-------------- piano roll ---------------+
-| fixed-height viewport + time grid       |
-| draggable note blocks                   |
-| snap: 1/1, 1/2 default, 1/4 optional   |
-| snap row includes delete icon          |
-| changing snap does not rewrite timing   |
-| vertical scroll for more octaves        |
-| horizontal focus follows newest note    |
-| selected-set editing only               |
++------------- shared timeline -----------+
+| full-height piano roll                  |
+| all sets on one grid                    |
+| time runs upward                        |
+| pitch runs left-right                   |
+| floating controls: play / grid / sets   |
 +----------------------------------------+
 
-+---------- sticky playback dock ---------+
-| tabs: Playback | Keyboard | Sets       |
-| Playback: cursor + bpm +/- + compact   |
-| transport controls                     |
-| Keyboard: append-at-end note entry     |
-| + quick new-set action                 |
-| Sets: active set strip + selected set  |
-| detail card + pre/post cue actions     |
-| attached to bottom, not floating card  |
++--------------- keyboard ----------------+
+| attached directly under the grid        |
+| shares horizontal pitch scroll          |
 +----------------------------------------+
 ```
 
 ## UX Priorities
 
-1. always show which set is selected
-2. keep note spacing visible and editable
-3. keep note entry fast
-4. keep playback controls reachable while editing and scrolling
-5. keep keyboard and set controls reachable while editing and scrolling
-6. avoid accidental cross-set edits
-7. make snap changes safe and predictable
-8. keep save reachable without forcing a scroll to the bottom
+1. keep the piano roll and keyboard dominant
+2. keep set structure visible without splitting editing into separate panes
+3. make timing edits readable and direct
+4. keep cues and grouped sounds editable as real events
+5. avoid DAW-style complexity
 
-## Set Editing Rule
+## Interaction Model
 
-Use one piano roll for the active set.
+The screen shows one shared timeline for the entire scale.
 
-- tapping empty piano-roll space places a note at the tapped pitch and time column
-- keyboard entry appends a note at the end of the selected set
-- dragging a note edits only the selected set
-- other sets appear as compact previews, not as editable overlapping lanes
-- moving content across sets should require an explicit action, not a normal drag
-- changing snap changes the grid, not the saved timing
-- set selection and set actions live in the dock rather than duplicating set controls in the main scroll content
-- support both pre-cues and post-cues for scale exercises that announce the target both before and after the note run
+- all sets are visible on the same grid
+- the selected set is highlighted and editable
+- other sets stay visible as context
+- tapping a sound in another set selects that set
+- keyboard input appends to the selected set
 
-## Piano Roll Viewport Rule
+## Set Boundaries
 
-Keep the piano roll vertically bounded on screen while still allowing the full pitch range.
+Set boundaries are visible grouping markers, not separate timing objects.
 
-- use a fixed-height viewport instead of rendering the full pitch range at once
-- allow vertical scrolling for more octaves rather than clipping to a narrow hard-coded range
-- auto-position the viewport near the selected set's notes when the active content changes
-- horizontally bias the viewport toward the newest note column so recent edits stay near center
-- avoid trapping note drags at arbitrary visible octave edges
+- a set starts where its first sound starts
+- the separator line reflects that start
+- dragging the separator moves that set start explicitly
+- dragging the first sound of a later set also moves that set start
+- dragging later sounds in that set should not move the separator
 
-## Save Action Rule
+## Timing Behavior
 
-Save is a top-bar action, not a bottom form footer.
+For v1, only one timing value is exposed:
 
-- keep `Save` in the app bar opposite `Back`
-- disable save until the scale has a name and at least one playable note
-- avoid a duplicate bottom save/cancel panel in the editor
+- `breakAfterBeats`
 
-## Playback Panel Rule
+This means:
 
-The playback panel in the editor dock should stay compact and playback-first.
+- the visible gap after a sound is owned by that sound
+- the gap across a set boundary is still owned by the earlier sound
+- moving a sound rewrites adjacent spacing based on the new shared timeline order
 
-- use an icon-only primary play/stop control
-- show stop only while playing by swapping the primary control state
-- keep secondary playback actions like `Step` and `Reset` lighter than the primary control
-- preserve breathing room through layout balance before reducing dock padding
+Expected editing behavior:
 
-## Sets Panel Rule
+- dragging a later sound within a set changes spacing inside that set
+- dragging the first sound of a later set changes both the set start and the previous cross-set gap
+- dragging a separator changes the same boundary explicitly
+- changing grid snap affects placement and dragging only, not saved timing globally
 
-Set management belongs in the editor dock beside playback and keyboard.
+## Sound Rendering
 
-- provide one dedicated `Sets` tab in the dock rather than duplicate set sections in the main content
-- keep the selected set obvious from the highlighted set strip; do not duplicate selection state with a second badge inside the detail card
-- keep `New set`, cue actions, delete, and clear close to set selection
-- distinguish pre-cue and post-cue actions explicitly instead of treating cue placement as one generic action
-- let the piano roll remain the center of the screen while sets work alongside it
-- keep the selected-set detail card at a stable height so the dock does not jump when switching between empty and non-empty sets
-- allow long note/cue summaries and action rows to scroll horizontally rather than clipping
+- note sound: square block
+- cue sound: circular block
+- grouped cue: multiple circles at one time position
+- multi-note sound: one event that moves together
+- vertical drag transposes the whole sound together
 
-## Snap Rule
+## Controls
 
-Snap is an editor control, not a destructive transform.
+### Playback
 
-- `1/2` is the default snap
-- `1/1` and `1/4` are optional views/editing snaps
-- switching snap should only affect future placement and dragging
-- rewriting existing timing belongs to a separate quantize action if added later
+- playback lives in a floating overlay, not a dock
+- the main action is play and stop
+- playback should match the timing the user sees in the grid
 
-## Future Draft-Correction And Reinference Mode
+### Grid
 
-When opened from analyzer output or when running a seeded reinference loop, the editor should additionally show:
+- snap options are `1/1`, `1/2`, and `1/4`
+- `1/2` is the default
+- snap affects placement and drag quantization only
 
-```text
-+------------ imported evidence ----------+
-| draft source / candidate / note summary |
-+----------------------------------------+
+### Sets
 
-+------------ inference controls ---------+
-| infer missing sets                      |
-| lock/unlock corrected sets              |
-+----------------------------------------+
-```
+- the sets overlay selects the active set
+- it also exposes set-level actions such as add, delete, clear, and cue actions
+- sets remain real structure even though editing happens on one shared grid
 
-This should remain supportive, not overpower the editing workspace.
+## Non-Goals
+
+Do not add by default:
+
+- per-sound duration editing
+- velocity or articulation editing
+- full DAW-style resizing tools
+- hidden timing rules for cues
+
+## Future Hooks
+
+Later reinference work will likely add:
+
+- inferred vs confirmed set state
+- lock and unlock controls
+- infer-missing-sets actions
+- better draft review support inside the editor

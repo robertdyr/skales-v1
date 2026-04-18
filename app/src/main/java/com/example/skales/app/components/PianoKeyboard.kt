@@ -3,6 +3,7 @@ package com.example.skales.app.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -25,18 +26,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.skales.model.Note
 
-private data class PianoKey(
-    val midi: Int,
-    val note: Note,
-)
-
-private const val KeyboardStartMidi = 21
-private const val KeyboardEndMidi = 108
 private const val InitialVisibleMidi = 48
-private val WhiteKeyWidth = 44.dp
-private val BlackKeyWidth = 28.dp
 private val PianoWhiteKeyColor = Color(0xFFF5F1E8)
 private val PianoWhiteKeyLabelColor = Color(0xFF5A5348)
+private val PianoKeyboardSurfaceColor = Color(0xFF0F0F12)
 
 @Composable
 fun PianoKeyboard(
@@ -44,28 +37,36 @@ fun PianoKeyboard(
     modifier: Modifier = Modifier,
     whiteKeyHeight: Dp = 220.dp,
     blackKeyHeight: Dp = 132.dp,
+    scrollState: ScrollState = rememberScrollState(),
 ) {
-    val allKeys = (KeyboardStartMidi..KeyboardEndMidi).map { midi -> PianoKey(midi = midi, note = Note.fromMidi(midi)) }
-    val whiteKeys = allKeys.filterNot { it.note.isBlackKey }
-    val blackKeys = allKeys.filter { it.note.isBlackKey }
-    val scrollState = rememberScrollState()
+    val allKeys = remember { PianoLayout.keys() }
+    val whiteKeys = remember(allKeys) { allKeys.filterNot { it.note.isBlackKey } }
+    val blackKeys = remember(allKeys) { allKeys.filter { it.note.isBlackKey } }
     val density = LocalDensity.current
     val initialWhiteKeyIndex = remember(whiteKeys) {
         whiteKeys.indexOfFirst { it.midi == InitialVisibleMidi }.coerceAtLeast(0)
     }
 
     LaunchedEffect(initialWhiteKeyIndex) {
-        val initialOffsetPx = with(density) { (WhiteKeyWidth * initialWhiteKeyIndex).roundToPx() }
+        val initialOffsetPx = with(density) { (PianoLayout.WhiteKeyWidth * initialWhiteKeyIndex).roundToPx() }
         scrollState.scrollTo(initialOffsetPx)
     }
 
-    Box(modifier = modifier.horizontalScroll(scrollState)) {
-        Box(modifier = Modifier.width(WhiteKeyWidth * whiteKeys.size)) {
+    Box(
+        modifier = modifier
+            .background(PianoKeyboardSurfaceColor)
+            .horizontalScroll(scrollState),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(PianoLayout.totalWidth(allKeys))
+                .background(PianoKeyboardSurfaceColor),
+        ) {
             Row {
                 whiteKeys.forEach { key ->
                     WhiteKey(
                         note = key.note,
-                        width = WhiteKeyWidth,
+                        width = PianoLayout.WhiteKeyWidth,
                         height = whiteKeyHeight,
                         onClick = { onNotePressed(key.midi) },
                     )
@@ -73,11 +74,10 @@ fun PianoKeyboard(
             }
 
             blackKeys.forEach { key ->
-                val offset = blackKeyOffset(key.midi, whiteKeys, WhiteKeyWidth, BlackKeyWidth)
                 BlackKey(
-                    width = BlackKeyWidth,
+                    width = key.width,
                     height = blackKeyHeight,
-                    modifier = Modifier.offset(x = offset),
+                    modifier = Modifier.offset(x = key.left),
                     onClick = { onNotePressed(key.midi) },
                 )
             }
@@ -130,18 +130,6 @@ private fun BlackKey(
             .background(Color(0xFF0C0C0D), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
             .clickable(onClick = onClick),
     )
-}
-
-private fun blackKeyOffset(
-    midi: Int,
-    whiteKeys: List<PianoKey>,
-    whiteKeyWidth: Dp,
-    blackKeyWidth: Dp,
-): Dp {
-    val previousWhiteIndex = whiteKeys.indexOfLast { it.midi < midi }
-    val centerOffset = (whiteKeyWidth - blackKeyWidth) / 2
-    val base = whiteKeyWidth * (previousWhiteIndex + 1)
-    return base - centerOffset
 }
 
 private fun whiteKeyLabel(note: Note): String {

@@ -16,7 +16,6 @@ data class ScaleSound(
 
 data class ScaleSet(
     val sounds: List<ScaleSound>,
-    val breakAfterBeats: Float? = null,
 )
 
 data class PlaybackTiming(

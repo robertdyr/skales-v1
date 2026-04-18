@@ -4,7 +4,7 @@
 
 The core domain models for Skales live in `app/src/main/java/com/example/skales/model/`.
 
-These models represent the final playback-ready scale structure.
+These models represent the final saved playback-ready scale structure.
 
 ## Scale Model
 
@@ -24,18 +24,16 @@ A `Scale` is the final saved playback object. It represents one complete exercis
 ```kotlin
 data class ScaleSet(
     val sounds: List<ScaleSound>,
-    val breakAfterBeats: Float? = null,
 )
 ```
 
-A `ScaleSet` is one repeatable exercise unit within a scale.
+A `ScaleSet` is one grouped exercise unit within a scale.
 
-Scales are organized into sets, so a real exercise looks like:
+Important current rule:
 
-- `Set 1: C --- N ---- N`
-- `Set 2: C --- N -- N -- N`
-
-The `breakAfterBeats` field adds extra spacing after the final sound in the set.
+- sets still exist as real domain grouping
+- sets no longer carry their own timing break field
+- the first sound of a set defines where that set visibly begins on the shared editor timeline
 
 ## ScaleSound Model
 
@@ -53,14 +51,15 @@ data class ScaleSound(
 )
 ```
 
-A `ScaleSound` is one playback step.
+A `ScaleSound` is one playback event.
 
 Important details:
 
-- A sound can contain one note or multiple notes played together (chords)
-- `kind` distinguishes between cue sounds and normal note sounds
-- Cue sounds are regular sounds with `kind = Cue` (no special playback rules)
-- `breakAfterBeats` controls spacing after this sound
+- a sound can contain one note or multiple notes played together
+- `kind` distinguishes cue sounds from normal note sounds
+- cues are still regular sounds, not a second hidden structure
+- `breakAfterBeats` controls the spacing after this sound
+- for v1, all sounds are treated as having the same played duration; only the spacing to the next sound is modeled
 
 ## PlaybackTiming Model
 
@@ -74,59 +73,79 @@ The only global timing value is BPM. All spacing is beat-based.
 
 ## Mental Model
 
-Think of a scale as a sequence of sounds with beat-based spacing:
+Think of a scale as a sequence of sound events with beat-based spacing:
 
 ```text
-C --- N ---- N ---- N -- N -- N
+C --- N ---- N ---- CueChord -- N
 ```
 
 - `C` = cue sound
 - `N` = normal note sound
+- `CueChord` = one cue event containing multiple notes
 - `-` = beat-space after that sound
 
-Scales are organized into sets:
+Sets group these sounds, but the editor now renders them on one shared timeline:
 
 ```text
 Set 1: C --- N ---- N
-Set 2: C --- N -- N -- N
+Set 2: CueChord -- N -- N
 ```
+
+There is no extra set break field anymore. Cross-set spacing is still represented by the previous sound's `breakAfterBeats`.
 
 ## Spacing Rules
 
-Per-sound spacing: `ScaleSound.breakAfterBeats`
-Per-set spacing: `ScaleSet.breakAfterBeats`
+Only one spacing rule matters now:
 
-Default breaks when omitted:
+- per-sound spacing: `ScaleSound.breakAfterBeats`
+
+Default break when omitted:
 
 - note sound: `1f` beat
-- cue sound: `1.5f` beats
-- set break: `1.75f` beats (added after the final sound in the set)
+- cue sound: `1f` beat
+
+Current product decision:
+
+- cue sounds do not get a hidden longer default pause
+- if a cue should have more space after it, that should be expressed explicitly in the editor/model
+
+## Multi-Note Sound Rule
+
+`ScaleSound.notes` is a real grouped event, not just a label convenience.
+
+That means:
+
+- a cue can contain multiple notes played together
+- the editor should render all pitches in that sound
+- dragging the sound should transpose all of its pitches together
+- grouped sounds should keep one shared start time and one shared `breakAfterBeats`
 
 ## Note Representation
 
 Notes are represented as MIDI note numbers (0-127).
 
-Example:
+Examples:
+
 - Middle C (C4) = 60
 - A4 (440 Hz) = 69
 
 ## Important Constraints
 
-- Domain models do not contain persistence metadata (`createdAt`, `updatedAt`)
-- Persistence metadata lives in `ScaleEntity` (see `storage.md`)
-- The domain model is playback-focused: it models what gets played, in what grouping, and with what spacing
-- Do not reintroduce the old flat `notes + setStarts + cue` shape
+- domain models do not contain persistence metadata (`createdAt`, `updatedAt`)
+- persistence metadata lives in `ScaleEntity` (see `storage.md`)
+- the domain model is playback-focused: it models what gets played, in what grouping, and with what spacing
+- do not reintroduce set-level break timing
+- do not add per-sound duration or velocity to v1 unless product scope changes intentionally
 
-## Model Evolution
+## Current Model Direction
 
-The current model is set-based and sound-based. This replaced an earlier flat representation.
+The current model should be understood as:
 
-The set-based model supports:
+- grouping is set-based
+- timing is per-sound
+- editing is shared-timeline
 
-- clear grouping of related sounds
-- explicit per-sound and per-set spacing
-- easy editing and inference
-- straightforward playback scheduling
+That combination is deliberate.
 
 ## Related Documentation
 

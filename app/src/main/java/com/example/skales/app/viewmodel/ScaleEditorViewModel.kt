@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.skales.editor.ScaleEditorOps
 import com.example.skales.editor.SetGridOps
 import com.example.skales.model.ScaleSet
+import com.example.skales.model.ScaleSoundKind
 import com.example.skales.player.PianoSoundPlayer
 import com.example.skales.player.PlaybackCursor
 import com.example.skales.player.PlaybackDirection
@@ -31,12 +32,14 @@ data class ScaleEditorUiState(
     val name: String = "",
     val sets: List<ScaleSet> = ScaleEditorOps.defaultSets(),
     val selectedSetIndex: Int = 0,
+    val placementKind: ScaleSoundKind = ScaleSoundKind.Note,
     val snapStepBeats: Float = SetGridOps.DefaultStepBeats,
     val bpm: Int = DefaultBpm,
     val playbackCursor: PlaybackCursor = PlaybackCursor(),
     val isEditing: Boolean = false,
     val isLoaded: Boolean = false,
     val isPlaying: Boolean = false,
+    val isKeyboardExpanded: Boolean = false,
 ) {
     val selectedSet: ScaleSet?
         get() = sets.getOrNull(selectedSetIndex)
@@ -93,14 +96,18 @@ class ScaleEditorViewModel(
         _uiState.update { it.copy(bpm = (it.bpm - BpmStep).coerceAtLeast(MinBpm)) }
     }
 
-    fun selectSet(index: Int) {
-        _uiState.update { state ->
-            state.copy(selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(state.sets, index))
-        }
+    fun setKeyboardExpanded(expanded: Boolean) {
+        _uiState.update { it.copy(isKeyboardExpanded = expanded) }
     }
 
-    fun setSnapStepBeats(stepBeats: Float) {
-        _uiState.update { it.copy(snapStepBeats = stepBeats) }
+    fun selectSet(index: Int) {
+        stopScale()
+        _uiState.update { state ->
+            state.copy(
+                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(state.sets, index),
+                playbackCursor = PlaybackCursor(),
+            )
+        }
     }
 
     fun addSet() {
@@ -111,27 +118,19 @@ class ScaleEditorViewModel(
         mutateSets(ScaleEditorOps::deleteSelectedSet)
     }
 
-    fun addChordPreCueToSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::addChordPreCueToSelectedSet)
+    fun setSnapStepBeats(stepBeats: Float) {
+        _uiState.update { it.copy(snapStepBeats = stepBeats) }
     }
 
-    fun addChordPostCueToSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::addChordPostCueToSelectedSet)
-    }
-
-    fun removeChordPreCueFromSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::removeChordPreCueFromSelectedSet)
-    }
-
-    fun removeChordPostCueFromSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::removeChordPostCueFromSelectedSet)
+    fun setPlacementKind(kind: ScaleSoundKind) {
+        _uiState.update { it.copy(placementKind = kind) }
     }
 
     fun onNotePressed(midi: Int) {
         previewMidi(midi)
         stopScale()
         _uiState.update { state ->
-            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
+            val nextSets = ScaleEditorOps.addSoundToSelectedSetAtColumn(
                 sets = state.sets,
                 selectedSetIndex = state.selectedSetIndex,
                 midi = midi,
@@ -139,32 +138,32 @@ class ScaleEditorViewModel(
                     state.selectedSet ?: ScaleSet(sounds = emptyList()),
                     state.snapStepBeats,
                 ),
+                kind = state.placementKind,
                 stepBeats = state.snapStepBeats,
             )
             val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
             state.copy(
                 sets = normalizedSets,
-                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
                 playbackCursor = PlaybackCursor(),
             )
         }
     }
 
-    fun addNoteToSelectedSetAtPosition(column: Int, midi: Int) {
+    fun addSoundToSelectedSetAtPosition(column: Int, midi: Int) {
         previewMidi(midi)
         stopScale()
         _uiState.update { state ->
-            val nextSets = ScaleEditorOps.addNoteToSelectedSetAtColumn(
-                state.sets,
-                state.selectedSetIndex,
-                midi,
-                column,
-                state.snapStepBeats,
+            val nextSets = ScaleEditorOps.addSoundToSelectedSetAtColumn(
+                sets = state.sets,
+                selectedSetIndex = state.selectedSetIndex,
+                midi = midi,
+                column = column,
+                kind = state.placementKind,
+                stepBeats = state.snapStepBeats,
             )
             val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
             state.copy(
                 sets = normalizedSets,
-                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
                 playbackCursor = PlaybackCursor(),
             )
         }
@@ -172,23 +171,39 @@ class ScaleEditorViewModel(
 
     fun moveNoteInSelectedSet(soundId: String, midi: Int, column: Int) {
         previewMidi(midi)
-        mutateSelectedSets { sets, selectedSetIndex ->
+        mutateSelectedSet { sets, selectedSetIndex ->
             ScaleEditorOps.moveNoteInSelectedSet(sets, selectedSetIndex, soundId, midi, column, uiState.value.snapStepBeats)
         }
     }
 
+    fun moveSetBoundary(targetSetIndex: Int, column: Int) {
+        stopScale()
+        _uiState.update { state ->
+            val nextSets = ScaleEditorOps.moveSetBoundary(
+                sets = state.sets,
+                targetSetIndex = targetSetIndex,
+                column = column,
+                stepBeats = state.snapStepBeats,
+            )
+            state.copy(
+                sets = ScaleEditorOps.normalizeSets(nextSets),
+                playbackCursor = PlaybackCursor(),
+            )
+        }
+    }
+
     fun removeNoteFromSelectedSet(soundId: String) {
-        mutateSelectedSets { sets, selectedSetIndex ->
+        mutateSelectedSet { sets, selectedSetIndex ->
             ScaleEditorOps.removeNoteFromSelectedSet(sets, selectedSetIndex, soundId, uiState.value.snapStepBeats)
         }
     }
 
     fun removeLastSoundFromSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::removeLastSoundFromSelectedSet)
+        mutateSelectedSet(ScaleEditorOps::removeLastSoundFromSelectedSet)
     }
 
     fun clearSelectedSet() {
-        mutateSelectedSets(ScaleEditorOps::clearSelectedSet)
+        mutateSelectedSet(ScaleEditorOps::clearSelectedSet)
     }
 
     fun resetPlaybackCursor() {
@@ -285,6 +300,19 @@ class ScaleEditorViewModel(
         }
     }
 
+    private fun mutateSelectedSet(transform: (List<ScaleSet>, Int) -> List<ScaleSet>) {
+        stopScale()
+        _uiState.update { state ->
+            val nextSets = transform(state.sets, state.selectedSetIndex)
+            val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
+            state.copy(
+                sets = normalizedSets,
+                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
+                playbackCursor = PlaybackCursor(),
+            )
+        }
+    }
+
     private fun mutateSets(transform: (List<ScaleSet>, Int) -> Pair<List<ScaleSet>, Int>) {
         stopScale()
         _uiState.update { state ->
@@ -293,19 +321,6 @@ class ScaleEditorViewModel(
             state.copy(
                 sets = normalizedSets,
                 selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, nextSelectedIndex),
-                playbackCursor = PlaybackCursor(),
-            )
-        }
-    }
-
-    private fun mutateSelectedSets(transform: (List<ScaleSet>, Int) -> List<ScaleSet>) {
-        stopScale()
-        _uiState.update { state ->
-            val nextSets = transform(state.sets, state.selectedSetIndex)
-            val normalizedSets = ScaleEditorOps.normalizeSets(nextSets)
-            state.copy(
-                sets = normalizedSets,
-                selectedSetIndex = ScaleEditorOps.normalizeSelectedSetIndex(normalizedSets, state.selectedSetIndex),
                 playbackCursor = PlaybackCursor(),
             )
         }
