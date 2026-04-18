@@ -121,5 +121,27 @@ Later reinference work will likely add:
 
 - inferred vs confirmed set state
 - lock and unlock controls
-- infer-missing-sets actions
+- small probe suggestions before bulk generation
+- range-based fill actions around confirmed anchors
 - better draft review support inside the editor
+
+## Inference Review Direction
+
+Inference review should stay inside the editor rather than opening a separate correction surface.
+
+The intended interaction is:
+
+- user authors one or more trusted sets
+- user asks for a small number of suggestions first
+- suggested sets appear as provisional on the same timeline
+- user accepts, rejects, or edits those suggestions
+- once the pattern looks right, user can request a larger range fill
+
+Important UX rules:
+
+- default inference should favor a small probe over a large bulk generation
+- larger fill actions should be explicit
+- suggested sets should remain visually distinct from confirmed sets
+- playback review should not always require starting from the beginning of the exercise
+
+Range-based inference may need to generate sets before the current confirmed region as well as after it, so the editor must treat confirmed sets as anchors inside a larger possible exercise rather than assuming they are always the beginning.

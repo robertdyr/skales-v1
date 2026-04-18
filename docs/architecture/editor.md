@@ -79,6 +79,26 @@ So:
 
 When the user edits the grid, timing is rebuilt from the resulting timeline order and then written back into the owning sets.
 
+## Review State
+
+The saved domain model remains a plain ordered list of `ScaleSet`s.
+
+The editor may track additional per-set review metadata without changing that saved shape.
+
+Examples:
+
+- confirmed set
+- suggested set
+- later, locked set
+
+Important rule:
+
+- suggested and confirmed sets should still appear in one working sequence on the same timeline
+- inference should not open a second disconnected draft editor for normal correction work
+- direct user edits to a suggested set should promote it to confirmed
+
+Confirmed sets should be treated as trusted anchors during inference and reinference.
+
 ## Editing Rules
 
 - only the selected set is directly editable
@@ -116,5 +136,6 @@ Likely additions later:
 
 - inferred vs confirmed set state
 - lock and unlock controls for sets
-- infer-missing-sets actions
+- probe suggestions for a few next sets
+- larger range fill actions around confirmed anchors
 - better review handoff for inferred drafts
