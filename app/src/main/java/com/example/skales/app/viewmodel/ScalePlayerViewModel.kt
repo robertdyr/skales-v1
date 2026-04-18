@@ -167,13 +167,11 @@ fun PlaybackCursor.currentSetIndex(scale: Scale?, direction: PlaybackDirection):
 
 fun labelForSetSound(set: ScaleSet, soundIndex: Int): String {
     val sound = set.sounds[soundIndex]
-    return sound.notes.joinToString(separator = " ") { midi ->
-        Note.fromMidi(midi).name
-    }
+    return Note.fromMidi(sound.midi).name
 }
 
 private fun Scale.withoutEmptySetsForPlayer(): Scale = copy(
     sets = sets
-        .map { set -> set.copy(sounds = set.sounds.filter { it.notes.isNotEmpty() }) }
+        .map { set -> set.copy(sounds = set.sounds) }
         .filter { it.sounds.isNotEmpty() },
 )

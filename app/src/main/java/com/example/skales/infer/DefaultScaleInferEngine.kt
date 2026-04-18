@@ -77,7 +77,7 @@ class DefaultScaleDraftBuilder : ScaleDraftBuilder {
                 ScaleSet(
                     sounds = phrase.noteEvents.mapIndexed { eventIndex, event ->
                         ScaleSound(
-                            notes = listOf(event.midi),
+                            midi = event.midi,
                             kind = ScaleSoundKind.Note,
                             step = setStartStep + (eventIndex * SetGridOps.DefaultAdvanceSteps),
                         )
@@ -94,7 +94,7 @@ class DefaultScaleDraftBuilder : ScaleDraftBuilder {
         val targetSetCount = request.setCount.coerceAtLeast(request.currentSets.size).coerceAtLeast(scaleType.intervals.size)
         val seededMidis = request.currentSets
             .flatMap { set -> set.sounds }
-            .flatMap { sound -> sound.notes }
+            .map { sound -> sound.midi }
         val baseMidi = seededMidis.minOrNull()?.let { anchorRootMidi(it, topCandidate.rootPitchClass) } ?: (60 + topCandidate.rootPitchClass)
         val inferredSets = buildInferredSets(scaleType.intervals, baseMidi, targetSetCount)
         val mergedSets = MutableList(targetSetCount) { index ->
@@ -119,7 +119,7 @@ class DefaultScaleDraftBuilder : ScaleDraftBuilder {
             ScaleSet(
                 sounds = listOf(
                     ScaleSound(
-                        notes = listOf(midi),
+                        midi = midi,
                         kind = ScaleSoundKind.Note,
                         step = index * SetGridOps.DefaultAdvanceSteps,
                     ),
@@ -157,7 +157,7 @@ class DefaultScaleInferEngine(
     override fun infer(request: ScaleInferenceRequest): ScaleInferenceResult {
         val pitchClasses = request.currentSets
             .flatMap { set -> set.sounds }
-            .flatMap { sound -> sound.notes }
+            .map { sound -> sound.midi }
             .map { ((it % 12) + 12) % 12 }
             .toSet()
         val candidates = candidateRanker.rankFromPitchClasses(pitchClasses)

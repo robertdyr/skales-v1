@@ -51,11 +51,10 @@ object SetGridOps {
         val layout = computeLayout(normalizedSets)
         val notes = normalizedSets.flatMapIndexed { setIndex, set ->
             set.sounds
-                .filter { it.notes.isNotEmpty() }
                 .map { sound ->
                     SetGridNote(
                         soundId = sound.id,
-                        midis = sound.notes.map { midi -> midi.coerceIn(minMidi, maxMidi) },
+                        midis = listOf(sound.midi.coerceIn(minMidi, maxMidi)),
                         column = sound.step.coerceAtLeast(0),
                         setIndex = setIndex,
                         kind = sound.kind,
@@ -117,7 +116,7 @@ object SetGridOps {
         return normalizedSets.toMutableList().apply {
             this[safeIndex] = this[safeIndex].copy(
                 sounds = (this[safeIndex].sounds + ScaleSound(
-                    notes = listOf(midi),
+                    midi = midi,
                     kind = kind,
                     step = targetStep,
                 )).sortedBy { it.step },
@@ -164,7 +163,7 @@ object SetGridOps {
                         sounds = currentSet.sounds.map { sound ->
                             if (sound.id == soundId) {
                                 sound.copy(
-                                    notes = transposeNotes(sound.notes, displayMidi(sound.notes), midi),
+                                    midi = midi,
                                     step = clampedTarget,
                                 )
                             } else {
@@ -220,7 +219,7 @@ object SetGridOps {
         var nextAvailableStart = 0
 
         sets.forEachIndexed { setIndex, set ->
-            val playableSounds = set.sounds.filter { it.notes.isNotEmpty() }.sortedBy { it.step }
+            val playableSounds = set.sounds.sortedBy { it.step }
             val setStart = when {
                 setIndex == 0 -> 0
                 else -> playableSounds.firstOrNull()?.step ?: nextAvailableStart
@@ -262,17 +261,6 @@ object SetGridOps {
 
     private fun snapStepSize(snapStepBeats: Float): Int {
         return (snapStepBeats / InternalStepBeats).roundToInt().coerceAtLeast(1)
-    }
-
-    private fun displayMidi(notes: List<Int>): Int = notes.average().roundToInt()
-
-    private fun transposeNotes(notes: List<Int>, previousDisplayMidi: Int, newDisplayMidi: Int): List<Int> {
-        val delta = newDisplayMidi - previousDisplayMidi
-        return if (notes.size == 1) {
-            listOf(newDisplayMidi)
-        } else {
-            notes.map { it + delta }
-        }
     }
 
     private data class TimelineLayout(

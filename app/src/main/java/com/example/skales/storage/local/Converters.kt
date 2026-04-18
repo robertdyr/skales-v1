@@ -24,12 +24,7 @@ class Converters {
                                             put("id", sound.id)
                                             put("kind", sound.kind.name)
                                             put("step", sound.step)
-                                            put(
-                                                "notes",
-                                                JSONArray().apply {
-                                                    sound.notes.forEach(::put)
-                                                },
-                                            )
+                                            put("midi", sound.midi)
                                         },
                                     )
                                 }
@@ -53,7 +48,6 @@ class Converters {
             ScaleSet(
                 sounds = List(soundsJson.length()) { soundIndex ->
                     val soundJson = soundsJson.getJSONObject(soundIndex)
-                    val notesJson = soundJson.getJSONArray("notes")
 
                     ScaleSound(
                         id = if (soundJson.has("id") && !soundJson.isNull("id")) {
@@ -61,7 +55,7 @@ class Converters {
                         } else {
                             UUID.randomUUID().toString()
                         },
-                        notes = List(notesJson.length(), notesJson::getInt),
+                        midi = soundJson.getInt("midi"),
                         kind = ScaleSoundKind.valueOf(soundJson.getString("kind")),
                         step = soundJson.optInt("step", 0),
                     )

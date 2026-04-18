@@ -9,7 +9,7 @@ enum class ScaleSoundKind {
 
 data class ScaleSound(
     val id: String = UUID.randomUUID().toString(),
-    val notes: List<Int>,
+    val midi: Int,
     val kind: ScaleSoundKind,
     val step: Int = 0,
 )

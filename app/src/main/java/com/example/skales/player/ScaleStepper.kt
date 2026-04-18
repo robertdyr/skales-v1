@@ -23,7 +23,7 @@ data class StepResult(
 )
 
 class ScaleStepper(
-    private val pianoSoundPlayer: PianoSoundPlayer,
+    private val soundPlayer: SoundPlayer,
 ) {
     suspend fun next(
         scale: Scale,
@@ -31,21 +31,17 @@ class ScaleStepper(
         direction: PlaybackDirection,
     ): StepResult {
         val playableScale = scale.withoutEmptySets()
-        val currentCursor = cursor.normalizedFor(playableScale, direction)
-        require(!currentCursor.isFinished) { "Cannot step a finished scale" }
-
         val timeline = playableScale.timelineEvents()
-        val currentIndex = timeline.indexOfFirst {
-            it.setIndex == currentCursor.setIndex && it.soundIndexInSet == currentCursor.soundIndexInSet
-        }
-        require(currentIndex >= 0) { "Playback cursor does not point to a playable sound" }
+        val currentIndex = timeline.nextPlayableIndex(cursor.normalizedFor(playableScale, direction), direction)
+        require(currentIndex >= 0) { "Cannot step a finished scale" }
 
         val currentEvent = timeline[currentIndex]
-        val sound = playableScale.sets[currentEvent.setIndex].sounds[currentEvent.soundIndexInSet]
-        pianoSoundPlayer.playSound(sound.notes)
+        val currentGroup = timeline.eventsAtStep(currentEvent.step)
+        soundPlayer.playSound(currentGroup.map { event ->
+            playableScale.sets[event.setIndex].sounds[event.soundIndexInSet].midi
+        })
 
-        val nextIndex = currentIndex + direction.timelineDelta
-        val nextEvent = timeline.getOrNull(nextIndex)
+        val nextEvent = timeline.nextGroupAnchor(currentEvent.step, direction)
         val nextCursor = if (nextEvent == null) {
             PlaybackCursor(isFinished = true)
         } else {
@@ -84,6 +80,37 @@ private fun Scale.timelineEvents(): List<TimelineEvent> {
     }.sortedWith(compareBy<TimelineEvent> { it.step }.thenBy { it.setIndex }.thenBy { it.soundIndexInSet })
 }
 
+private fun List<TimelineEvent>.nextPlayableIndex(cursor: PlaybackCursor, direction: PlaybackDirection): Int {
+    if (isEmpty()) return -1
+
+    val exactMatchIndex = indexOfFirst {
+        it.setIndex == cursor.setIndex && it.soundIndexInSet == cursor.soundIndexInSet
+    }
+    if (exactMatchIndex >= 0) return exactMatchIndex
+
+    return when (direction) {
+        PlaybackDirection.Forward -> indexOfFirst {
+            it.setIndex > cursor.setIndex ||
+                (it.setIndex == cursor.setIndex && it.soundIndexInSet >= cursor.soundIndexInSet)
+        }
+        PlaybackDirection.Backward -> indexOfLast {
+            it.setIndex < cursor.setIndex ||
+                (it.setIndex == cursor.setIndex && it.soundIndexInSet <= cursor.soundIndexInSet)
+        }
+    }
+}
+
+private fun List<TimelineEvent>.eventsAtStep(step: Int): List<TimelineEvent> {
+    return filter { it.step == step }
+}
+
+private fun List<TimelineEvent>.nextGroupAnchor(step: Int, direction: PlaybackDirection): TimelineEvent? {
+    return when (direction) {
+        PlaybackDirection.Forward -> firstOrNull { it.step > step }
+        PlaybackDirection.Backward -> lastOrNull { it.step < step }
+    }
+}
+
 private data class TimelineEvent(
     val setIndex: Int,
     val soundIndexInSet: Int,
@@ -92,7 +119,7 @@ private data class TimelineEvent(
 
 fun Scale.withoutEmptySets(): Scale = copy(
     sets = sets
-        .map { set -> set.copy(sounds = set.sounds.filter { sound -> sound.notes.isNotEmpty() }) }
+        .map { set -> set.copy(sounds = set.sounds) }
         .filter { it.sounds.isNotEmpty() },
 )
 

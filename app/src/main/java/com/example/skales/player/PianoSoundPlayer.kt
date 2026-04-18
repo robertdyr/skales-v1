@@ -9,9 +9,15 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+interface SoundPlayer {
+    suspend fun playSound(notes: List<Int>)
+
+    fun stop()
+}
+
 class PianoSoundPlayer(
     context: Context,
-) {
+) : SoundPlayer {
     private val activeStreamIds = mutableSetOf<Int>()
     private val sampleAnchors: List<SampleAnchor>
     private val samplesReady = CompletableDeferred<Unit>()
@@ -45,13 +51,13 @@ class PianoSoundPlayer(
         pendingSoundIds += sampleAnchors.map { it.soundId }
     }
 
-    suspend fun playSound(notes: List<Int>) = withContext(Dispatchers.IO) {
+    override suspend fun playSound(notes: List<Int>) = withContext(Dispatchers.IO) {
         if (notes.isEmpty()) return@withContext
         samplesReady.await()
         notes.forEach(::playNoteInternal)
     }
 
-    fun stop() {
+    override fun stop() {
         activeStreamIds.toList().forEach(soundPool::stop)
         activeStreamIds.clear()
     }

@@ -7,15 +7,15 @@ The editor is the authoring and correction surface for a `Scale`.
 It owns:
 
 - manual scale creation
-- correction of saved or inferred scales
-- projection of `Scale -> ScaleSet -> ScaleSound` into an editable piano-roll view
-- review of suggested sets inside the same working surface
+- correction of inferred or saved scales
+- projection of `Scale -> ScaleSet -> ScaleSound` into the piano-roll UI
+- editing operations on sounds, boundaries, and selected sets
 
 It does not own:
 
-- inference logic itself
-- audio analysis
+- inference logic
 - persistence rules
+- playback scheduling
 
 ## Code Mapping
 
@@ -24,173 +24,76 @@ It does not own:
 - `app/viewmodel/ScaleEditorViewModel.kt`
 - `app/screens/ScaleEditorScreen.kt`
 - `app/components/SetPianoRollEditor.kt`
-- `app/components/PianoKeyboard.kt`
 
-Responsibility split:
+## Core Editor View
 
-- `editor/` owns editing and transformation logic
-- `ScaleEditorViewModel` owns editor session state
-- `app/screens` and `app/components` own UI rendering and input
-
-## Core Model View
-
-The saved model remains:
-
-```text
-Scale -> List<ScaleSet> -> List<ScaleSound>
-```
-
-The editor should continue to present that model as one shared piano-roll timeline.
+The editor shows one shared piano-roll timeline for the entire scale.
 
 That means:
 
-- all sets are shown on one grid
+- all sets are visible on one grid
 - one set is selected for editing ownership
-- non-selected sets stay visible as context
-- set boundaries are visible grouping markers in one continuous exercise view
+- non-selected sets remain visible as context
+- set boundaries are visible grouping markers
 
-## Timing Direction
+## Timing Rules
 
-The editor should increasingly treat the grid as the structural source of truth.
-
-That means the long-term model direction is:
+The editor uses the saved absolute-step model directly.
 
 - sounds live at stable internal step positions
-- grouped sounds share one start step
-- spacing is derived from differences between steps
+- same-step sounds may overlap in time and play together
+- spacing is derived from step differences
+- changing snap does not rewrite saved positions
 
-This is important because the editor is already fundamentally working in:
+## Set Boundary Rules
 
-- columns
-- snapping
-- boundary placement
-- drag-based repositioning
-
-The earlier `breakAfterBeats` model gave elegant local spacing semantics, but it makes the piano roll a projection of a different storage truth. That becomes increasingly awkward as the editor grows more structural.
-
-## Why Step-Based Timing Fits The Editor
-
-The editor increasingly needs to support:
-
-- grouped simultaneous sounds
-- moving sounds directly on the grid
-- reordering by position
-- inserting inferred sets before or after confirmed anchors
-- reviewing only a local region of a larger exercise
-
-Those are all more naturally expressed with absolute step positions than with relative post-gap ownership.
-
-## Shared Timeline Rules
-
-- sets remain real grouping structure
-- the editor behaves like one timeline with visible set boundaries
-- the boundary of a set is the start step of that set's first sound
-- cues and grouped sounds remain first-class events
-- grouped sounds are one event with multiple pitches, not multiple unrelated timeline items
-
-## Set Boundaries
-
-Set boundaries are visible grouping markers, not a second timing structure.
-
-The boundary of a set is derived from the first sound in that set.
-
-Practical implications:
-
-- dragging the first sound of a later set moves that set start
-- dragging later sounds within a set should not move the set start
-- dragging the separator is an explicit boundary move
-
-This rule becomes cleaner once the saved model stores event positions directly rather than reconstructing them from previous breaks.
-
-## Review State
-
-The saved domain model should remain a plain ordered list of `ScaleSet`s.
-
-The editor may track additional per-set review metadata without changing that saved shape.
-
-Examples:
-
-- confirmed set
-- suggested set
-- later, locked set
-
-Important rules:
-
-- confirmed and suggested sets should appear in one working sequence on the same timeline
-- inference should not open a second disconnected draft editor for normal correction work
-- direct user edits to a suggested set should promote it to confirmed
-- confirmed sets are trusted anchors during inference and reinference
+- the boundary of a set is the first sound step in that set
+- dragging the separator moves that boundary explicitly
+- dragging the first sound of a later set also moves that boundary
+- dragging later sounds within a set does not move the set boundary
 
 ## Editing Rules
 
 - only the selected set is directly editable
 - tapping a sound in another set switches selection to that set
-- dragging a sound should move that event on the grid
-- dragging grouped sounds should move their pitches together by default
-- dragging later sounds within a set should not move the set boundary
-- dragging the first sound of a later set changes that set start
-- dragging a separator is the explicit boundary control
+- dragging a sound moves that sound on the grid
+- same-step sounds remain independent sounds even when they play together
+- keyboard input adds a sound to the selected set
 
-## Multi-Note Sound Direction
+## Same-Step Sounds
 
-The editor should continue to treat a multi-note sound as one event at one step.
+Current semantics:
 
-Short-term expectations:
+- each sound is independent
+- several sounds may share one `step`
+- playback groups those sounds into one playback moment
+- rendering should make same-step sounds readable without turning them into one object
 
-- render all pitches in the sound
-- move the sound as one unit by default
-- allow inference to produce cue chords and other grouped simultaneous sounds
+## Review State
 
-Later editing improvements may add note-level identity inside the sound. That is a refinement on top of the event model, not a replacement for it.
+The saved model stays plain:
 
-## Playback Review Direction
+- `Scale`
+- `ScaleSet`
+- `ScaleSound`
 
-The editor should support local review, not only full-from-start playback.
-
-Why:
-
-- suggestion review becomes tedious if every edit requires replaying the whole exercise
-- confirmed anchors may live inside a larger inferred range
-- users need to test local suggestions before requesting wider generation
-
-Likely direction:
-
-- play from selected set
-- later, possibly play from selected sound
+Editor-specific review state such as confirmed or suggested should live outside the saved domain model.
 
 ## Non-Goals
-
-The editor should not become a DAW.
 
 Do not add by default:
 
 - arbitrary duration editing
 - velocity editing
 - articulation tools
-- free absolute time editing
 - a second saved timeline model
+- DAW-style resizing tools
 
-## Migration Note For Future Agent
+## Current Direction
 
-The current implementation still contains logic that reconstructs a shared timeline from `breakAfterBeats`.
+Future editor work should focus on:
 
-That should be treated as implementation debt, not as the final conceptual model.
-
-If continuing editor work:
-
-1. align new editor behaviors with step-based event placement
-2. avoid deepening assumptions that previous-sound gap ownership is the long-term truth
-3. prefer designs that map directly to stable event positions and grouped events
-
-## Future Role
-
-The editor remains the correction surface for reinference work.
-
-Likely additions later:
-
-- inferred vs confirmed set state
-- lock and unlock controls
-- grouped-sound authoring and editing
-- probe suggestions for a few next sets
-- larger range fill actions around confirmed anchors
-- better localized playback review during inference
+- confirmed vs suggested set state
+- better local playback review
+- better readability for same-step notes
+- better ownership and boundary feedback

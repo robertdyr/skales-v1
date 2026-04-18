@@ -97,7 +97,7 @@ object ScaleEditorOps {
 
     fun buildDraftScale(scaleId: String?, name: String, sets: List<ScaleSet>, bpm: Int): Scale? {
         val playableSets = sets
-            .map { set -> set.copy(sounds = set.sounds.filter { sound -> sound.notes.isNotEmpty() }) }
+            .map { set -> set.copy(sounds = set.sounds) }
             .filter { it.sounds.isNotEmpty() }
         if (playableSets.isEmpty()) return null
 
@@ -116,10 +116,8 @@ object ScaleEditorOps {
     }
 
     fun labelForSound(sound: ScaleSound): String {
-        return sound.notes.joinToString(separator = " + ") { midi ->
-            val note = Note.fromMidi(midi)
-            "${note.name}${note.octave}"
-        }
+        val note = Note.fromMidi(sound.midi)
+        return "${note.name}${note.octave}"
     }
 
     private fun mutateSelectedSet(

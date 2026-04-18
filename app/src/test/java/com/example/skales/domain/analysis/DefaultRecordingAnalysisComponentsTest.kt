@@ -122,7 +122,7 @@ class DefaultRecordingAnalysisComponentsTest {
 
         assertNotNull(draft)
         assertEquals("C major pentatonic", draft?.nameSuggestion)
-        assertEquals(listOf(60, 62, 64), draft?.sets?.single()?.sounds?.map { it.notes.single() })
+        assertEquals(listOf(60, 62, 64), draft?.sets?.single()?.sounds?.map { it.midi })
     }
 
     @Test
@@ -132,8 +132,8 @@ class DefaultRecordingAnalysisComponentsTest {
         val result = inferEngine.infer(
             ScaleInferenceRequest(
                 currentSets = listOf(
-                    ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note))),
-                    ScaleSet(sounds = listOf(ScaleSound(notes = listOf(62), kind = ScaleSoundKind.Note))),
+                    ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note))),
+                    ScaleSet(sounds = listOf(ScaleSound(midi = 62, kind = ScaleSoundKind.Note))),
                 ),
                 lockedSetIndices = setOf(0, 1),
                 setCount = 7,
@@ -141,8 +141,8 @@ class DefaultRecordingAnalysisComponentsTest {
         )
 
         assertNotNull(result.suggestedScale)
-        assertEquals(listOf(60), result.suggestedScale?.sets?.get(0)?.sounds?.single()?.notes)
-        assertEquals(listOf(62), result.suggestedScale?.sets?.get(1)?.sounds?.single()?.notes)
+        assertEquals(60, result.suggestedScale?.sets?.get(0)?.sounds?.single()?.midi)
+        assertEquals(62, result.suggestedScale?.sets?.get(1)?.sounds?.single()?.midi)
         assertEquals(7, result.suggestedScale?.sets?.size)
     }
 

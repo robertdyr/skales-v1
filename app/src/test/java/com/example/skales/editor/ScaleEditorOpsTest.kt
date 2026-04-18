@@ -27,9 +27,9 @@ class ScaleEditorOpsTest {
     @Test
     fun moveSetBoundary_shiftsTargetAndLaterSetsTogether() {
         val sets = listOf(
-            ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note, step = 0))),
-            ScaleSet(sounds = listOf(ScaleSound(notes = listOf(62), kind = ScaleSoundKind.Note, step = 4))),
-            ScaleSet(sounds = listOf(ScaleSound(notes = listOf(64), kind = ScaleSoundKind.Note, step = 8))),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 0))),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 62, kind = ScaleSoundKind.Note, step = 4))),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 64, kind = ScaleSoundKind.Note, step = 8))),
         )
 
         val updated = ScaleEditorOps.moveSetBoundary(
@@ -47,11 +47,11 @@ class ScaleEditorOpsTest {
     fun toGrid_usesFirstSoundAsLaterSetBoundary() {
         val grid = SetGridOps.toGrid(
             sets = listOf(
-                ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note, step = 4))),
+                ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 4))),
                 ScaleSet(
                     sounds = listOf(
-                        ScaleSound(notes = listOf(62), kind = ScaleSoundKind.Note, step = 8),
-                        ScaleSound(notes = listOf(64), kind = ScaleSoundKind.Note, step = 10),
+                        ScaleSound(midi = 62, kind = ScaleSoundKind.Note, step = 8),
+                        ScaleSound(midi = 64, kind = ScaleSoundKind.Note, step = 10),
                     ),
                 ),
             ),
@@ -62,15 +62,14 @@ class ScaleEditorOpsTest {
     }
 
     @Test
-    fun buildSavableScale_filtersEmptySoundsAndTrimsName() {
+    fun buildSavableScale_trimsNameAndPreservesMidi() {
         val scale = ScaleEditorOps.buildSavableScale(
             scaleId = "",
             name = "  Test Scale  ",
             sets = listOf(
                 ScaleSet(
                     sounds = listOf(
-                        ScaleSound(notes = emptyList(), kind = ScaleSoundKind.Note, step = 0),
-                        ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note, step = 4),
+                        ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 4),
                     ),
                 ),
             ),
@@ -79,7 +78,7 @@ class ScaleEditorOpsTest {
 
         assertNotNull(scale)
         assertEquals("Test Scale", scale?.name)
-        assertEquals(listOf(60), scale?.sets?.single()?.sounds?.flatMap { it.notes })
+        assertEquals(listOf(60), scale?.sets?.single()?.sounds?.map { it.midi })
         assertEquals(4, scale?.sets?.single()?.sounds?.single()?.step)
     }
 
@@ -88,7 +87,7 @@ class ScaleEditorOpsTest {
         val scale = ScaleEditorOps.buildSavableScale(
             scaleId = null,
             name = "   ",
-            sets = listOf(ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note, step = 0)))),
+            sets = listOf(ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 0)))),
             bpm = 92,
         )
 
