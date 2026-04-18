@@ -38,14 +38,14 @@ object ScaleEditorOps {
     }
 
     fun addNoteToSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, midi: Int): List<ScaleSet> {
-        return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            set.copy(
-                sounds = set.sounds + ScaleSound(
-                    notes = listOf(midi),
-                    kind = ScaleSoundKind.Note,
-                ),
-            )
-        }
+        return addSoundToSelectedSetAtColumn(
+            sets = sets,
+            selectedSetIndex = selectedSetIndex,
+            midi = midi,
+            column = SetGridOps.nextFreeColumn(sets, selectedSetIndex),
+            kind = ScaleSoundKind.Note,
+            stepBeats = SetGridOps.DefaultStepBeats,
+        )
     }
 
     fun addSoundToSelectedSetAtColumn(
@@ -56,9 +56,7 @@ object ScaleEditorOps {
         kind: ScaleSoundKind,
         stepBeats: Float,
     ): List<ScaleSet> {
-        return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.addSoundAtColumn(set, midi, column, kind, stepBeats)
-        }
+        return SetGridOps.addSoundInTimeline(sets, selectedSetIndex, midi, column, kind, stepBeats)
     }
 
     fun moveNoteInSelectedSet(
@@ -83,7 +81,7 @@ object ScaleEditorOps {
 
     fun removeNoteFromSelectedSet(sets: List<ScaleSet>, selectedSetIndex: Int, soundId: String, stepBeats: Float): List<ScaleSet> {
         return mutateSelectedSet(sets, selectedSetIndex) { set ->
-            SetGridOps.removeNote(set, soundId, stepBeats)
+            SetGridOps.removeNote(set, soundId)
         }
     }
 

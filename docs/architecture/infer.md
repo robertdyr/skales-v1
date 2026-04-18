@@ -2,60 +2,104 @@
 
 ## Responsibility
 
-`infer` turns incomplete musical evidence into a `ScaleDraft`.
+`infer` turns incomplete musical evidence into a reviewable proposal.
 
 That evidence can come from either:
 
 - the analyzer after audio recognition
 - the editor after the user authors one or more trusted sets
 
-This is the component that supports the iterative workflow:
+The component supports the iterative workflow:
 
-1. user enters one set
-2. engine infers a likely full scale
-3. user corrects one or two sets
-4. engine infers again with those corrected sets locked in
-
-## External Contract
-
-```mermaid
-flowchart LR
-    Seed["partial scale / detected phrases"] --> Infer["infer"] --> Draft["ScaleDraft"]
-```
+1. user enters one or more sets
+2. engine suggests a likely continuation
+3. user corrects or confirms some sets
+4. engine suggests again with those confirmed anchors preserved
 
 ## Core Rule
 
 Inference is not the same thing as analysis.
 
 - `analyzer` extracts note evidence from audio
-- `infer` guesses the full scale shape from partial evidence
+- `infer` proposes the larger exercise structure from partial evidence
 
 That split matters because editor-assisted inference must work even when there is no recording at all.
 
-## Supported Inputs
+## Editor Inference Direction
 
-### Partial editor-authored scale
+Editor-driven inference should be understood as proposal-oriented, not overwrite-oriented.
 
-Example:
+That means:
 
-- set 1 entered manually
-- infer the rest
-- user fixes set 2
-- infer again
+- confirmed sets are trusted anchors
+- suggested sets are provisional
+- the editor remains the review and correction surface
+- inference should integrate into the working sequence rather than opening a separate draft editor for normal correction
 
-The engine should preserve the user-confirmed sets and only regenerate the unresolved parts.
+## Confirmed Anchors
 
-Editor-driven inference should not assume that the confirmed sets are necessarily the beginning of the full exercise. Confirmed sets may sit inside a larger intended range, with missing sets before them, after them, or on both sides.
+The important conceptual shift is this:
 
-### Analyzer evidence
+- confirmed sets are not necessarily the beginning of the full exercise
 
-Example:
+They may sit:
 
-- analyzer extracts phrases from recording
-- `infer` ranks candidate scales
-- `infer` builds a draft for review
+- at the start
+- in the middle
+- near the top of the intended range
+- as several anchors with missing regions between them
 
-## Recommended API Shape
+So inference must support generating:
+
+- before confirmed anchors
+- after confirmed anchors
+- around confirmed anchors
+- eventually between confirmed anchors if needed
+
+## Probe vs Fill Range
+
+Two editor-facing actions are expected to be useful.
+
+### Probe suggestion
+
+Purpose:
+
+- test whether the engine understood the pattern
+- keep review low-overwhelm
+
+Typical behavior:
+
+- suggest 1 or 2 sets
+- keep them provisional
+- let the user accept, reject, or edit them
+
+### Fill range
+
+Purpose:
+
+- generate a larger span once the pattern looks right
+
+Typical behavior:
+
+- fill a requested pitch range
+- possibly generate before the currently confirmed region
+- possibly generate after the currently confirmed region
+- return a larger proposal for review
+
+`Fill range` should not be modeled as append-only.
+
+## Recommended Interface Direction
+
+The exact Kotlin classes may evolve, but the editor-facing request should support these ideas:
+
+- current ordered working sets
+- which sets are confirmed anchors
+- requested mode such as probe or fill-range
+- optional pitch bounds
+- optional count limit as a safety bound
+- optional name or prompt hint
+
+Conceptually:
 
 ```kotlin
 interface ScaleInferEngine {
@@ -63,81 +107,23 @@ interface ScaleInferEngine {
 }
 ```
 
-Where the request can include:
+## Result Direction
 
-- current ordered working sets
-- which sets are confirmed anchors
-- requested suggestion mode
-- optional count limit
-- optional low and high pitch bounds
-- optional name hint
-- optional analyzer evidence
+For editor use, the important output is usually not a silent replacement draft.
 
-## What It Owns
+It is a reviewable proposal the editor can merge into the working sequence.
 
-- candidate scale ranking
-- filling missing sets from partial scale evidence
-- preserving confirmed user-authored sets during reinference
-- draft naming suggestions based on the best candidate
-
-## What It Must Not Own
-
-- audio decoding
-- pitch detection
-- file import
-- editor UI state
-- persistence
-
-## App-Layer Usage
-
-```mermaid
-flowchart TD
-    Editor["editor ViewModel"] --> Infer["infer"]
-    Analyzer["analyzer"] --> Infer
-    Infer --> Draft["ScaleDraft"] --> Editor
-```
-
-For editor-driven inference, the important output is usually not a full replacement draft but a reviewable proposal that the editor can merge into the current working sequence.
-
-## Editor Inference Direction
-
-The editor-facing inference flow should be proposal-oriented.
-
-That means:
-
-- confirmed sets are treated as trusted anchors
-- inference may generate a small number of probe suggestions first
-- inference may later fill a larger requested range
-- requested range may extend below, above, or around the confirmed anchors
-- editor-facing results should be reviewable proposals, not silent replacements
-
-Two editor actions are expected to be useful:
-
-- `Suggest next` or another small probe action to test whether the engine understood the pattern
-- `Fill range` for a larger continuation once the pattern looks right
-
-`Fill range` should not be modeled as append-only. It may need to introduce suggested sets before the currently confirmed block as well as after it.
-
-## Proposal Shape
-
-The exact request and result classes may evolve, but the editor-facing contract should support these concepts:
-
-Request:
-
-- current ordered working sets
-- which sets are confirmed
-- optional requested scope such as probe count or pitch range
-- optional count limit as a safety bound
-
-Result:
+Good result concepts:
 
 - proposed ordered sets for the requested scope
-- optional candidate/ranking metadata
+- optional candidate ranking metadata
 - optional name suggestion
 
-For an LLM-backed inference engine, returning a full proposed ordered sequence for the requested scope may be simpler and more robust than returning only append operations or surgical insert instructions.
+For an LLM-backed inference engine, returning a full proposed ordered sequence for the requested scope may be simpler and more robust than returning only append operations or surgical insertion instructions.
 
-## Editor Merge Rules
+That is especially true once requested range may extend below already confirmed sets.
+
+## Merge Rules
 
 The editor merge step should follow these rules:
 
@@ -146,21 +132,85 @@ The editor merge step should follow these rules:
 - accepting a suggestion promotes it to confirmed
 - directly editing a suggested set promotes it to confirmed
 - rejecting a suggestion removes it from the working sequence
-- inference may insert suggested sets before existing confirmed sets if the requested range requires it
+- inference may insert suggested sets before existing confirmed sets if the requested scope requires it
 
 This keeps the working model simple:
 
 - one ordered working sequence in the editor
-- per-set review state on top of that sequence
-- one saved `Scale` domain model once the user is satisfied
+- per-set review state layered on top
+- one final saved `Scale` once the user is satisfied
+
+## Why Step-Based Timing Helps Inference
+
+Inference is easier to reason about when the underlying model is structurally step-based.
+
+Why:
+
+- the engine can think in ordered event positions
+- grouped simultaneous sounds are just several notes in one event at one step
+- range fill becomes a problem of proposing ordered events within bounds
+- editor merge becomes simpler because proposed positions are structural, not reconstructed through relative gaps
+
+This is one of the main reasons the architecture is leaning away from `breakAfterBeats` as the long-term storage truth.
+
+## Analyzer-Facing Inference
+
+The analyzer path may still want a draft-like whole-result handoff.
+
+That is fine.
+
+But editor-facing inference should be optimized for:
+
+- incremental suggestions
+- local review
+- reinference with trusted anchors
+
+The two use cases do not need to force the exact same result shape if that would harm clarity.
+
+## What Infer Owns
+
+- candidate scale ranking
+- proposal generation from partial evidence
+- preserving confirmed anchors during reinference
+- name suggestion based on the best candidate
+
+## What Infer Must Not Own
+
+- audio decoding
+- pitch detection
+- editor UI state
+- persistence
+- review state transitions such as accept, reject, or confirm
+
+Those stay in the editor layer.
+
+## Migration Note For Future Agent
+
+The current code in `infer/` still reflects an older whole-draft replacement mindset and a simpler interval-template implementation.
+
+Do not assume that is the target shape.
+
+Current documentation direction:
+
+- editor-facing infer should return proposals suitable for merge
+- confirmed anchors may exist anywhere in the larger exercise
+- step-based event placement is the preferred long-term structural model
+
+If implementing inference next:
+
+1. finalize the editor-side confirmed vs suggested set state
+2. decide the stable internal step resolution for saved timing
+3. define an editor-focused inference request/result contract around proposals
+4. only then implement probe suggestions and larger range fill
 
 ## Current Direction
 
-Initial implementation can stay heuristic and lightweight.
+Initial implementation can still be heuristic or LLM-backed.
 
 The important architectural move is separating:
 
 - extraction of evidence
-- inference from evidence
+- proposal generation from evidence
+- editor-side review and merge
 
-That keeps future improvements localized. Better ranking, richer templates, or LLM-assisted completion can happen inside this component without dragging recording concerns into it.
+That separation keeps future improvements localized.

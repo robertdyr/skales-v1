@@ -23,7 +23,7 @@ class Converters {
                                         JSONObject().apply {
                                             put("id", sound.id)
                                             put("kind", sound.kind.name)
-                                            put("breakAfterBeats", sound.breakAfterBeats?.toDouble() ?: JSONObject.NULL)
+                                            put("step", sound.step)
                                             put(
                                                 "notes",
                                                 JSONArray().apply {
@@ -63,15 +63,10 @@ class Converters {
                         },
                         notes = List(notesJson.length(), notesJson::getInt),
                         kind = ScaleSoundKind.valueOf(soundJson.getString("kind")),
-                        breakAfterBeats = soundJson.nullableFloat("breakAfterBeats"),
+                        step = soundJson.optInt("step", 0),
                     )
                 },
             )
         }
     }
-}
-
-private fun JSONObject.nullableFloat(key: String): Float? {
-    if (isNull(key)) return null
-    return getDouble(key).toFloat()
 }

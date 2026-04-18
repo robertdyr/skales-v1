@@ -154,13 +154,19 @@ These should remain stable unless there is a strong reason to change them:
 
 - `Scale` is the final saved playback object
 - `ScaleSet` is one repeatable exercise unit. A `Scale` consists of many `ScaleSet`s. 
-- `ScaleSet` remains grouping structure, but timing is represented only through per-sound spacing
+- `ScaleSet` remains grouping structure even when the editor shows one shared timeline
 - users should review inferred results before saving when confidence is uncertain
 - audio analysis should produce evidence, not just a black-box answer
 - scale completion should be a separate inference step, not hidden inside audio analysis
 - the component name should stay `infer` everywhere in the docs and architecture
 - manual correction should reuse the editor rather than inventing a second editing model
 - the MVP scope can be narrower than the full product vision
+
+Timing model direction:
+
+- the long-term model direction is event-based playback with absolute step positions
+- the project should avoid a full absolute time-and-duration sequencing model unless scope changes intentionally
+- UI snap is an editing aid, not the saved timing model itself
 
 ## Current State
 
@@ -182,12 +188,37 @@ MVP gaps:
 - richer inference flow on top of the new shared timeline editor
 - playback preview inside the review flow
 - polish around shared-timeline set editing and grouped cue rendering
+- migration from `breakAfterBeats`-centric timing logic to stable step-position storage
 
 Current inference direction:
 
 - editor inference should start with small reviewable suggestions rather than bulk generation by default
 - confirmed user-authored sets should act as anchors inside a larger possible exercise
 - later range fill may generate sets before or after the currently confirmed region
+
+Current model direction:
+
+- grouped sounds remain real event-level playback units
+- cue chords and other simultaneous sounds should be represented as one sound with multiple notes
+- the architecture is leaning toward absolute step ordering rather than relative post-gap ownership
+
+## Handoff Note
+
+This repo currently contains a mismatch:
+
+- the editor UI is strongly grid-first
+- much of the implementation still rebuilds that grid from `breakAfterBeats`
+
+The current documentation direction is that the grid-first structural model is likely the better long-term source of truth.
+
+If a future agent starts implementing grouped sounds, cue chords, or editor inference merge logic, they should read:
+
+- `docs/architecture/models.md`
+- `docs/architecture/editor.md`
+- `docs/architecture/infer.md`
+- `docs/architecture/player.md`
+
+before making timing-model changes.
 
 Later phases:
 

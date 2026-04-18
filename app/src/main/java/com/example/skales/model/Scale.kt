@@ -11,7 +11,7 @@ data class ScaleSound(
     val id: String = UUID.randomUUID().toString(),
     val notes: List<Int>,
     val kind: ScaleSoundKind,
-    val breakAfterBeats: Float? = null,
+    val step: Int = 0,
 )
 
 data class ScaleSet(

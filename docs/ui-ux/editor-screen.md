@@ -145,3 +145,15 @@ Important UX rules:
 - playback review should not always require starting from the beginning of the exercise
 
 Range-based inference may need to generate sets before the current confirmed region as well as after it, so the editor must treat confirmed sets as anchors inside a larger possible exercise rather than assuming they are always the beginning.
+
+## Future Agent Note
+
+The current UI already looks and behaves like a grid-first editor. Future work should preserve that direction.
+
+That means:
+
+- grouped simultaneous sounds should feel natural on the grid
+- inference suggestions should appear as structural placements on the same timeline
+- review should happen in-place with local playback, not in a detached draft flow
+
+Avoid UX changes that deepen the mismatch between a piano-roll-first interface and a relative-gap storage model.

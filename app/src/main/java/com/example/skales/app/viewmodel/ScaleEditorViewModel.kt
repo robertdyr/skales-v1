@@ -135,7 +135,8 @@ class ScaleEditorViewModel(
                 selectedSetIndex = state.selectedSetIndex,
                 midi = midi,
                 column = SetGridOps.nextFreeColumn(
-                    state.selectedSet ?: ScaleSet(sounds = emptyList()),
+                    state.sets,
+                    state.selectedSetIndex,
                     state.snapStepBeats,
                 ),
                 kind = state.placementKind,

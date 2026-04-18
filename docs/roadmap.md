@@ -25,6 +25,11 @@ That means:
 - reinference with locked corrected sets
 - smooth save and playback handoff
 
+Important model note:
+
+- the editor and infer roadmap now assumes a likely migration toward absolute step-position event storage
+- grouped sounds and inference merge should be built with that direction in mind
+
 Why this comes first:
 
 - recording analysis is harder
@@ -53,7 +58,7 @@ Ship the MVP editor-first creation workflow.
 - create scales manually
 - place and drag notes in a piano roll
 - support non-destructive snap changes: 1/1, 1/2, 1/4
-- keep one active set in focus while other sets stay in a compact strip
+- keep one active set in focus while other sets remain visible in the shared timeline
 - seed one or more sets
 - infer the remaining sets
 - save the result
@@ -63,6 +68,8 @@ Ship the MVP editor-first creation workflow.
 
 Make reinference practical and pleasant.
 
+- finalize grouped simultaneous sounds well enough for cue chords
+- migrate timing/storage toward stable internal step positions
 - lock corrected sets
 - reinfer unresolved sets
 - keep inferred vs confirmed sets visually clear
@@ -73,9 +80,9 @@ Make reinference practical and pleasant.
 
 Improve inference quality.
 
-- richer scale templates
+- probe suggestions for a few sets before wider generation
+- fill-range inference around confirmed anchors
 - better ranking from partial evidence
-- stronger timing inference
 - better naming suggestions
 
 ### Phase 4
@@ -101,11 +108,25 @@ flowchart LR
     Library["Library"] --> Editor["Editor"]
     Editor --> Seed["Enter known sets"]
     Seed --> Infer["infer"]
-    Infer --> Correct["Correct draft"]
+    Infer --> Correct["Review and correct proposal"]
     Correct -. lock sets and infer again .-> Infer
     Correct --> Save["Save"]
     Save --> Player["Player"]
 ```
+
+## Future Agent Note
+
+If you are picking up work after this roadmap update, read the timing-model notes first.
+
+The likely order of architectural work is:
+
+1. settle stable internal step resolution
+2. migrate saved timing toward absolute step positions
+3. support grouped simultaneous sounds cleanly
+4. implement editor confirmed vs suggested set state
+5. implement probe suggestions and fill-range inference on top of that
+
+Avoid building deep new inference or grouped-sound logic on top of assumptions that `breakAfterBeats` is the final long-term storage truth.
 
 ## Later Flow
 

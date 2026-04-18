@@ -1,6 +1,7 @@
 package com.example.skales.infer
 
 import com.example.skales.analyzer.DetectedPhrase
+import com.example.skales.editor.SetGridOps
 import com.example.skales.model.PlaybackTiming
 import com.example.skales.model.ScaleSet
 import com.example.skales.model.ScaleSound
@@ -71,12 +72,14 @@ class DefaultScaleDraftBuilder : ScaleDraftBuilder {
 
         return ScaleDraft(
             nameSuggestion = nameSuggestion,
-            sets = phrases.map { phrase ->
+            sets = phrases.mapIndexed { phraseIndex, phrase ->
+                val setStartStep = phraseIndex * SetGridOps.DefaultAdvanceSteps
                 ScaleSet(
-                    sounds = phrase.noteEvents.map { event ->
+                    sounds = phrase.noteEvents.mapIndexed { eventIndex, event ->
                         ScaleSound(
                             notes = listOf(event.midi),
                             kind = ScaleSoundKind.Note,
+                            step = setStartStep + (eventIndex * SetGridOps.DefaultAdvanceSteps),
                         )
                     },
                 )
@@ -118,6 +121,7 @@ class DefaultScaleDraftBuilder : ScaleDraftBuilder {
                     ScaleSound(
                         notes = listOf(midi),
                         kind = ScaleSoundKind.Note,
+                        step = index * SetGridOps.DefaultAdvanceSteps,
                     ),
                 ),
             )

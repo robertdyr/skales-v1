@@ -1,9 +1,8 @@
 package com.example.skales.player
 
 import com.example.skales.model.Scale
-import com.example.skales.model.ScaleSoundKind
-
-private const val DefaultNoteBreakAfterBeats = 1f
+import com.example.skales.editor.SetGridOps
+import kotlin.math.absoluteValue
 
 enum class PlaybackDirection {
     Forward,
@@ -35,47 +34,61 @@ class ScaleStepper(
         val currentCursor = cursor.normalizedFor(playableScale, direction)
         require(!currentCursor.isFinished) { "Cannot step a finished scale" }
 
-        val set = playableScale.sets[currentCursor.setIndex]
-        val sound = set.sounds[currentCursor.soundIndexInSet]
+        val timeline = playableScale.timelineEvents()
+        val currentIndex = timeline.indexOfFirst {
+            it.setIndex == currentCursor.setIndex && it.soundIndexInSet == currentCursor.soundIndexInSet
+        }
+        require(currentIndex >= 0) { "Playback cursor does not point to a playable sound" }
+
+        val currentEvent = timeline[currentIndex]
+        val sound = playableScale.sets[currentEvent.setIndex].sounds[currentEvent.soundIndexInSet]
         pianoSoundPlayer.playSound(sound.notes)
 
-        val isLastSoundInSet = currentCursor.soundIndexInSet == set.sounds.lastIndex
-        val isBoundarySet = when (direction) {
-            PlaybackDirection.Forward -> currentCursor.setIndex == playableScale.sets.lastIndex
-            PlaybackDirection.Backward -> currentCursor.setIndex == 0
+        val nextIndex = currentIndex + direction.timelineDelta
+        val nextEvent = timeline.getOrNull(nextIndex)
+        val nextCursor = if (nextEvent == null) {
+            PlaybackCursor(isFinished = true)
+        } else {
+            PlaybackCursor(setIndex = nextEvent.setIndex, soundIndexInSet = nextEvent.soundIndexInSet)
         }
-        val nextCursor = when {
-            isLastSoundInSet && isBoundarySet -> PlaybackCursor(isFinished = true)
-            isLastSoundInSet -> PlaybackCursor(
-                setIndex = currentCursor.setIndex + direction.setDelta,
-                soundIndexInSet = 0,
-            )
-            else -> currentCursor.copy(soundIndexInSet = currentCursor.soundIndexInSet + 1)
+        val waitBeats = if (nextEvent == null) {
+            0f
+        } else {
+            ((nextEvent.step - currentEvent.step).absoluteValue * SetGridOps.InternalStepBeats)
         }
-
-        val soundBreak = sound.breakAfterBeats ?: defaultBreakAfter(sound.kind)
 
         return StepResult(
             nextCursor = nextCursor,
-            waitBeats = if (nextCursor.isFinished) 0f else soundBreak,
-            playedSetIndex = currentCursor.setIndex,
-            playedSoundIndex = currentCursor.soundIndexInSet,
+            waitBeats = waitBeats,
+            playedSetIndex = currentEvent.setIndex,
+            playedSoundIndex = currentEvent.soundIndexInSet,
         )
-    }
-
-    private fun defaultBreakAfter(kind: ScaleSoundKind): Float {
-        return when (kind) {
-            ScaleSoundKind.Cue -> DefaultNoteBreakAfterBeats
-            ScaleSoundKind.Note -> DefaultNoteBreakAfterBeats
-        }
     }
 }
 
-private val PlaybackDirection.setDelta: Int
+private val PlaybackDirection.timelineDelta: Int
     get() = when (this) {
         PlaybackDirection.Forward -> 1
         PlaybackDirection.Backward -> -1
     }
+
+private fun Scale.timelineEvents(): List<TimelineEvent> {
+    return sets.flatMapIndexed { setIndex, set ->
+        set.sounds.mapIndexed { soundIndexInSet, sound ->
+            TimelineEvent(
+                setIndex = setIndex,
+                soundIndexInSet = soundIndexInSet,
+                step = sound.step,
+            )
+        }
+    }.sortedWith(compareBy<TimelineEvent> { it.step }.thenBy { it.setIndex }.thenBy { it.soundIndexInSet })
+}
+
+private data class TimelineEvent(
+    val setIndex: Int,
+    val soundIndexInSet: Int,
+    val step: Int,
+)
 
 fun Scale.withoutEmptySets(): Scale = copy(
     sets = sets
@@ -89,7 +102,12 @@ fun PlaybackCursor.normalizedFor(scale: Scale, direction: PlaybackDirection = Pl
     if (isFinished) {
         return when (direction) {
             PlaybackDirection.Forward -> PlaybackCursor()
-            PlaybackDirection.Backward -> PlaybackCursor(setIndex = playableScale.sets.lastIndex)
+            PlaybackDirection.Backward -> playableScale.sets.lastIndex.let { lastSetIndex ->
+                PlaybackCursor(
+                    setIndex = lastSetIndex,
+                    soundIndexInSet = playableScale.sets[lastSetIndex].sounds.lastIndex,
+                )
+            }
         }
     }
 

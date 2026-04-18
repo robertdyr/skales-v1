@@ -26,9 +26,10 @@ object SetGridOps {
     const val CoarseStepBeats = 1f
     const val DefaultStepBeats = 0.5f
     const val FineStepBeats = 0.25f
+    const val InternalStepBeats = FineStepBeats
     const val DefaultMinMidi = 21
     const val DefaultMaxMidi = 108
-    const val DefaultAdvanceBeats = 1f
+    const val DefaultAdvanceSteps = 4
     private const val MinimumColumnCount = 16
 
     fun toGrid(
@@ -46,74 +47,82 @@ object SetGridOps {
         minMidi: Int = DefaultMinMidi,
         maxMidi: Int = DefaultMaxMidi,
     ): SetGrid {
-        val normalizedSets = if (sets.isEmpty()) listOf(ScaleSet(sounds = emptyList())) else sets
-        val notes = mutableListOf<SetGridNote>()
-        val setStartColumns = mutableListOf<Int>()
-        var currentColumn = 0
-
-        normalizedSets.forEachIndexed { setIndex, set ->
-            setStartColumns += currentColumn
-            val positionedSounds = extractSoundPositions(set, stepBeats)
-
-            positionedSounds.forEach { note ->
-                notes += SetGridNote(
-                    soundId = note.soundId,
-                    midis = note.sourceSound.notes.map { midi -> midi.coerceIn(minMidi, maxMidi) },
-                    column = currentColumn + note.column,
-                    setIndex = setIndex,
-                    kind = note.sourceSound.kind,
-                )
-            }
-
-            currentColumn += nextFreeColumn(set, stepBeats)
+        val normalizedSets = normalizeSets(sets)
+        val layout = computeLayout(normalizedSets)
+        val notes = normalizedSets.flatMapIndexed { setIndex, set ->
+            set.sounds
+                .filter { it.notes.isNotEmpty() }
+                .map { sound ->
+                    SetGridNote(
+                        soundId = sound.id,
+                        midis = sound.notes.map { midi -> midi.coerceIn(minMidi, maxMidi) },
+                        column = sound.step.coerceAtLeast(0),
+                        setIndex = setIndex,
+                        kind = sound.kind,
+                    )
+                }
         }
+        val farthestColumn = maxOf(
+            notes.maxOfOrNull { it.column + 1 } ?: 0,
+            layout.timelineEndExclusive,
+        )
 
-        val farthestColumn = notes.maxOfOrNull { it.column + 1 } ?: 0
         return SetGrid(
             notes = notes,
             columnCount = maxOf(MinimumColumnCount, farthestColumn + 4),
             minMidi = minMidi,
             maxMidi = maxMidi,
-            stepBeats = stepBeats,
-            setStartColumns = setStartColumns.ifEmpty { listOf(0) },
+            stepBeats = InternalStepBeats,
+            setStartColumns = layout.setStartColumns,
         )
     }
 
-    fun addSoundAtColumn(
-        set: ScaleSet,
-        midi: Int,
-        column: Int,
-        kind: ScaleSoundKind = ScaleSoundKind.Note,
-        stepBeats: Float = DefaultStepBeats,
-    ): ScaleSet {
-        val newSound = ScaleSound(
-            notes = listOf(midi),
-            kind = kind,
-            breakAfterBeats = DefaultAdvanceBeats,
-        )
-        val notePositions = extractSoundPositions(set, stepBeats) + PositionedSound(
-            soundId = newSound.id,
-            sourceSound = newSound,
-            midi = midi,
-            column = column.coerceAtLeast(0),
-            originalOrder = set.sounds.size,
-        )
-        return rebuildSet(set, notePositions, stepBeats)
-    }
-
-    fun moveNote(set: ScaleSet, soundId: String, midi: Int, column: Int, stepBeats: Float = DefaultStepBeats): ScaleSet {
-        val notePositions = extractSoundPositions(set, stepBeats).map { note ->
-            if (note.soundId == soundId) {
-                note.copy(
-                    midi = midi,
-                    column = column.coerceAtLeast(0),
-                    sourceSound = note.sourceSound.copy(notes = transposeNotes(note.sourceSound.notes, note.midi, midi)),
-                )
-            } else {
-                note
-            }
+    fun nextFreeColumn(
+        sets: List<ScaleSet>,
+        selectedSetIndex: Int,
+        snapStepBeats: Float = DefaultStepBeats,
+    ): Int {
+        val normalizedSets = normalizeSets(sets)
+        val safeIndex = selectedSetIndex.coerceIn(0, normalizedSets.lastIndex)
+        val layout = computeLayout(normalizedSets)
+        val setStart = layout.setStartColumns[safeIndex]
+        val nextStart = layout.nextSetStartColumn(safeIndex)
+        val lastStepInSet = normalizedSets[safeIndex].sounds.maxOfOrNull { it.step }
+        val targetGlobalColumn = if (lastStepInSet == null) {
+            setStart
+        } else {
+            lastStepInSet + snapStepSize(snapStepBeats)
         }
-        return rebuildSet(set, notePositions, stepBeats)
+        return (targetGlobalColumn.coerceAtMost(nextStart - 1) - setStart).coerceAtLeast(0)
+    }
+
+    fun addSoundInTimeline(
+        sets: List<ScaleSet>,
+        selectedSetIndex: Int,
+        midi: Int,
+        localColumn: Int,
+        kind: ScaleSoundKind = ScaleSoundKind.Note,
+        snapStepBeats: Float = DefaultStepBeats,
+    ): List<ScaleSet> {
+        val normalizedSets = normalizeSets(sets)
+        val safeIndex = selectedSetIndex.coerceIn(0, normalizedSets.lastIndex)
+        val layout = computeLayout(normalizedSets)
+        val targetStep = quantizeForSet(
+            globalColumn = layout.setStartColumns[safeIndex] + localColumn.coerceAtLeast(0),
+            selectedSetIndex = safeIndex,
+            layout = layout,
+            snapStepBeats = snapStepBeats,
+        )
+
+        return normalizedSets.toMutableList().apply {
+            this[safeIndex] = this[safeIndex].copy(
+                sounds = (this[safeIndex].sounds + ScaleSound(
+                    notes = listOf(midi),
+                    kind = kind,
+                    step = targetStep,
+                )).sortedBy { it.step },
+            )
+        }
     }
 
     fun moveSoundInTimeline(
@@ -121,193 +130,138 @@ object SetGridOps {
         selectedSetIndex: Int,
         soundId: String,
         midi: Int,
-        column: Int,
-        stepBeats: Float = DefaultStepBeats,
+        globalColumn: Int,
+        snapStepBeats: Float = DefaultStepBeats,
     ): List<ScaleSet> {
-        val normalizedSets = if (sets.isEmpty()) listOf(ScaleSet(sounds = emptyList())) else sets
-        val positionedSounds = extractTimelinePositions(normalizedSets, stepBeats)
-        val target = positionedSounds.firstOrNull { it.soundId == soundId && it.setIndex == selectedSetIndex } ?: return normalizedSets
-        val currentSetStart = positionedSounds
-            .filter { it.setIndex == selectedSetIndex }
-            .minOfOrNull { it.column }
-            ?: 0
-        val previousSetLast = positionedSounds
-            .filter { it.setIndex == selectedSetIndex - 1 }
-            .maxByOrNull { it.column }
-        val nextSetStart = positionedSounds
-            .filter { it.setIndex == selectedSetIndex + 1 }
-            .minOfOrNull { it.column }
-
-        val movesCurrentSetBoundary = selectedSetIndex > 0 && target.column == currentSetStart
-
-        val minColumn = if (movesCurrentSetBoundary) {
-            (previousSetLast?.column ?: -1) + 1
+        val normalizedSets = normalizeSets(sets)
+        val safeIndex = selectedSetIndex.coerceIn(0, normalizedSets.lastIndex)
+        val layout = computeLayout(normalizedSets)
+        val set = normalizedSets[safeIndex]
+        val target = set.sounds.firstOrNull { it.id == soundId } ?: return normalizedSets
+        val orderedSetSounds = set.sounds.sortedBy { it.step }
+        val setStart = layout.setStartColumns[safeIndex]
+        val nextSetStart = layout.nextSetStartColumn(safeIndex)
+        val firstSoundId = orderedSetSounds.firstOrNull()?.id
+        val movesBoundary = safeIndex > 0 && target.id == firstSoundId
+        val minAllowed = if (movesBoundary) {
+            layout.previousSetMaxOccupiedStep(safeIndex) + 1
         } else {
-            0
+            setStart
         }
-        val clampedColumn = column.coerceAtLeast(minColumn)
+        val quantizedTarget = quantizeColumn(globalColumn, snapStepBeats)
+        val clampedTarget = if (movesBoundary) {
+            quantizedTarget.coerceAtLeast(minAllowed)
+        } else {
+            quantizedTarget.coerceIn(minAllowed, nextSetStart - 1)
+        }
+        val crossedBoundary = movesBoundary && safeIndex < normalizedSets.lastIndex && clampedTarget >= nextSetStart
+        val boundaryShift = if (crossedBoundary) (clampedTarget + 1) - nextSetStart else 0
 
-        val crossedBoundary = nextSetStart != null && clampedColumn >= nextSetStart
-        val boundaryShift = if (crossedBoundary) (clampedColumn + 1) - nextSetStart else 0
-
-        val updated = positionedSounds.map { sound ->
+        return normalizedSets.mapIndexed { setIndex, currentSet ->
             when {
-                sound.soundId == soundId && sound.setIndex == selectedSetIndex -> {
-                    sound.copy(
-                        midi = midi,
-                        column = clampedColumn,
-                        sourceSound = sound.sourceSound.copy(notes = transposeNotes(sound.sourceSound.notes, sound.midi, midi)),
+                setIndex == safeIndex -> {
+                    currentSet.copy(
+                        sounds = currentSet.sounds.map { sound ->
+                            if (sound.id == soundId) {
+                                sound.copy(
+                                    notes = transposeNotes(sound.notes, displayMidi(sound.notes), midi),
+                                    step = clampedTarget,
+                                )
+                            } else {
+                                sound
+                            }
+                        }.sortedBy { it.step },
                     )
                 }
-                crossedBoundary && sound.setIndex > selectedSetIndex -> {
-                    sound.copy(column = sound.column + boundaryShift)
+                crossedBoundary && setIndex > safeIndex -> {
+                    currentSet.copy(sounds = currentSet.sounds.map { sound -> sound.copy(step = sound.step + boundaryShift) })
                 }
-                else -> sound
+                else -> currentSet
             }
         }
-
-        return rebuildTimelineSets(normalizedSets, updated, stepBeats)
     }
 
     fun moveSetBoundaryInTimeline(
         sets: List<ScaleSet>,
         targetSetIndex: Int,
-        startColumn: Int,
-        stepBeats: Float = DefaultStepBeats,
+        globalColumn: Int,
+        snapStepBeats: Float = DefaultStepBeats,
     ): List<ScaleSet> {
-        val normalizedSets = if (sets.isEmpty()) listOf(ScaleSet(sounds = emptyList())) else sets
+        val normalizedSets = normalizeSets(sets)
         if (targetSetIndex <= 0 || targetSetIndex > normalizedSets.lastIndex) return normalizedSets
 
-        val positionedSounds = extractTimelinePositions(normalizedSets, stepBeats)
-        val currentSetStart = positionedSounds
-            .filter { it.setIndex == targetSetIndex }
-            .minOfOrNull { it.column }
-            ?: return normalizedSets
-        val previousSetLast = positionedSounds
-            .filter { it.setIndex == targetSetIndex - 1 }
-            .maxByOrNull { it.column }
-            ?: return normalizedSets
-
-        val clampedStart = startColumn.coerceAtLeast(previousSetLast.column + 1)
-        val delta = clampedStart - currentSetStart
+        val layout = computeLayout(normalizedSets)
+        val currentSetStart = layout.setStartColumns[targetSetIndex]
+        val targetStart = quantizeColumn(globalColumn, snapStepBeats)
+            .coerceAtLeast(layout.previousSetMaxOccupiedStep(targetSetIndex) + 1)
+        val delta = targetStart - currentSetStart
         if (delta == 0) return normalizedSets
 
-        val shifted = positionedSounds.map { sound ->
-            if (sound.setIndex >= targetSetIndex) {
-                sound.copy(column = sound.column + delta)
+        return normalizedSets.mapIndexed { setIndex, set ->
+            if (setIndex >= targetSetIndex) {
+                set.copy(sounds = set.sounds.map { sound -> sound.copy(step = sound.step + delta) })
             } else {
-                sound
-            }
-        }
-
-        return rebuildTimelineSets(normalizedSets, shifted, stepBeats)
-    }
-
-    fun removeNote(set: ScaleSet, soundId: String, stepBeats: Float = DefaultStepBeats): ScaleSet {
-        val remaining = extractSoundPositions(set, stepBeats).filterNot { it.soundId == soundId }
-        return rebuildSet(set, remaining, stepBeats)
-    }
-
-    fun nextFreeColumn(set: ScaleSet, stepBeats: Float = DefaultStepBeats): Int {
-        val positionedNotes = extractSoundPositions(set, stepBeats)
-        val lastNote = positionedNotes.maxByOrNull { it.column } ?: return 0
-        return lastNote.column + advanceToColumns(lastNote.sourceSound.breakAfterBeats, stepBeats)
-    }
-
-    private fun rebuildSet(set: ScaleSet, notePositions: List<PositionedSound>, stepBeats: Float): ScaleSet {
-        val ordered = notePositions.sortedWith(compareBy<PositionedSound> { it.column }.thenBy { it.originalOrder }.thenBy { it.midi })
-        val rebuiltNotes = ordered.mapIndexed { index, note ->
-            val nextColumn = ordered.getOrNull(index + 1)?.column
-            val advanceBeats = if (nextColumn == null) {
-                note.sourceSound.breakAfterBeats ?: DefaultAdvanceBeats
-            } else {
-                columnsToAdvance((nextColumn - note.column).coerceAtLeast(1), stepBeats)
-            }
-            note.sourceSound.copy(
-                notes = note.sourceSound.notes,
-                breakAfterBeats = advanceBeats,
-            )
-        }
-
-        return set.copy(sounds = rebuiltNotes)
-    }
-
-    private fun rebuildTimelineSets(
-        originalSets: List<ScaleSet>,
-        positionedSounds: List<TimelinePositionedSound>,
-        stepBeats: Float,
-    ): List<ScaleSet> {
-        val ordered = positionedSounds.sortedWith(
-            compareBy<TimelinePositionedSound> { it.column }
-                .thenBy { it.setIndex }
-                .thenBy { it.originalOrder },
-        )
-
-        val rebuiltBySet = ordered.mapIndexed { index, sound ->
-            val nextColumn = ordered.getOrNull(index + 1)?.column
-            sound.copy(
-                sourceSound = sound.sourceSound.copy(
-                    breakAfterBeats = if (nextColumn == null) {
-                        sound.sourceSound.breakAfterBeats ?: DefaultAdvanceBeats
-                    } else {
-                        columnsToAdvance((nextColumn - sound.column).coerceAtLeast(1), stepBeats)
-                    },
-                ),
-            )
-        }.groupBy { it.setIndex }
-
-        return originalSets.indices.map { setIndex ->
-            val sounds = rebuiltBySet[setIndex]
-                ?.sortedWith(compareBy<TimelinePositionedSound> { it.column }.thenBy { it.originalOrder })
-                ?.map { it.sourceSound }
-                ?: emptyList()
-            originalSets[setIndex].copy(sounds = sounds)
-        }
-    }
-
-    private fun extractSoundPositions(set: ScaleSet, stepBeats: Float): List<PositionedSound> {
-        var currentColumn = 0
-        return buildList {
-            set.sounds.forEachIndexed { index, sound ->
-                if (sound.notes.isNotEmpty()) {
-                    add(
-                        PositionedSound(
-                            soundId = sound.id,
-                            sourceSound = sound,
-                            midi = displayMidi(sound.notes),
-                            column = currentColumn,
-                            originalOrder = index,
-                        ),
-                    )
-                    currentColumn += advanceToColumns(sound.breakAfterBeats, stepBeats)
-                }
+                set
             }
         }
     }
 
-    private fun extractTimelinePositions(sets: List<ScaleSet>, stepBeats: Float): List<TimelinePositionedSound> {
-        val positioned = mutableListOf<TimelinePositionedSound>()
-        var currentColumn = 0
+    fun removeNote(set: ScaleSet, soundId: String): ScaleSet {
+        return set.copy(sounds = set.sounds.filterNot { it.id == soundId })
+    }
+
+    private fun normalizeSets(sets: List<ScaleSet>): List<ScaleSet> {
+        return if (sets.isEmpty()) listOf(ScaleSet(sounds = emptyList())) else sets
+    }
+
+    private fun computeLayout(sets: List<ScaleSet>): TimelineLayout {
+        val setStarts = mutableListOf<Int>()
+        val maxOccupiedSteps = mutableListOf<Int>()
+        var nextAvailableStart = 0
+
         sets.forEachIndexed { setIndex, set ->
-            val local = extractSoundPositions(set, stepBeats)
-            local.forEach { sound ->
-                positioned += TimelinePositionedSound(
-                    soundId = sound.soundId,
-                    setIndex = setIndex,
-                    sourceSound = sound.sourceSound,
-                    midi = sound.midi,
-                    column = currentColumn + sound.column,
-                    originalOrder = sound.originalOrder,
-                )
+            val playableSounds = set.sounds.filter { it.notes.isNotEmpty() }.sortedBy { it.step }
+            val setStart = when {
+                setIndex == 0 -> 0
+                else -> playableSounds.firstOrNull()?.step ?: nextAvailableStart
             }
-            currentColumn += nextFreeColumn(set, stepBeats)
+            val maxOccupiedStep = playableSounds.maxOfOrNull { it.step } ?: (setStart - 1)
+            val setEndExclusive = if (maxOccupiedStep >= setStart) {
+                maxOccupiedStep + DefaultAdvanceSteps
+            } else {
+                setStart + DefaultAdvanceSteps
+            }
+            setStarts += setStart
+            maxOccupiedSteps += maxOccupiedStep
+            nextAvailableStart = maxOf(nextAvailableStart, setEndExclusive)
         }
-        return positioned
+
+        return TimelineLayout(
+            setStartColumns = setStarts.ifEmpty { listOf(0) },
+            setMaxOccupiedColumns = maxOccupiedSteps.ifEmpty { listOf(-1) },
+            timelineEndExclusive = nextAvailableStart,
+        )
     }
 
-    private fun advanceToColumns(breakAfterBeats: Float?, stepBeats: Float): Int {
-        val beats = breakAfterBeats ?: DefaultAdvanceBeats
-        return (beats / stepBeats).roundToInt().coerceAtLeast(1)
+    private fun quantizeForSet(
+        globalColumn: Int,
+        selectedSetIndex: Int,
+        layout: TimelineLayout,
+        snapStepBeats: Float,
+    ): Int {
+        val setStart = layout.setStartColumns[selectedSetIndex]
+        val nextStart = layout.nextSetStartColumn(selectedSetIndex)
+        return quantizeColumn(globalColumn, snapStepBeats)
+            .coerceIn(setStart, nextStart - 1)
+    }
+
+    private fun quantizeColumn(column: Int, snapStepBeats: Float): Int {
+        val snapSize = snapStepSize(snapStepBeats)
+        return ((column.toFloat() / snapSize).roundToInt() * snapSize).coerceAtLeast(0)
+    }
+
+    private fun snapStepSize(snapStepBeats: Float): Int {
+        return (snapStepBeats / InternalStepBeats).roundToInt().coerceAtLeast(1)
     }
 
     private fun displayMidi(notes: List<Int>): Int = notes.average().roundToInt()
@@ -321,24 +275,17 @@ object SetGridOps {
         }
     }
 
-    private fun columnsToAdvance(columns: Int, stepBeats: Float): Float {
-        return columns * stepBeats
+    private data class TimelineLayout(
+        val setStartColumns: List<Int>,
+        val setMaxOccupiedColumns: List<Int>,
+        val timelineEndExclusive: Int,
+    ) {
+        fun nextSetStartColumn(setIndex: Int): Int {
+            return setStartColumns.getOrNull(setIndex + 1) ?: Int.MAX_VALUE
+        }
+
+        fun previousSetMaxOccupiedStep(setIndex: Int): Int {
+            return setMaxOccupiedColumns.getOrElse(setIndex - 1) { -1 }
+        }
     }
-
-    private data class PositionedSound(
-        val soundId: String,
-        val sourceSound: ScaleSound,
-        val midi: Int,
-        val column: Int,
-        val originalOrder: Int,
-    )
-
-    private data class TimelinePositionedSound(
-        val soundId: String,
-        val setIndex: Int,
-        val sourceSound: ScaleSound,
-        val midi: Int,
-        val column: Int,
-        val originalOrder: Int,
-    )
 }
