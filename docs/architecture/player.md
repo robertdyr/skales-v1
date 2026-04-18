@@ -2,25 +2,7 @@
 
 ## Responsibility
 
-The player is the library that turns a final `Scale` into audible playback.
-
-The player should prefer operation-style APIs over owning screen session state.
-
-## External Contract
-
-```mermaid
-flowchart LR
-    ScaleIn["Scale"] --> Player["player"] --> Sound["sound playback"]
-```
-
-## Internal Shape
-
-```mermaid
-flowchart LR
-    ScaleFlow["Scale"] --> Stepper["stepper"] --> Scheduler["scheduler"] --> SoundPlayer["sound player"]
-```
-
-Screen/session state such as current cursor, direction, and play/pause status should usually live in a `ViewModel`.
+The player turns a saved `Scale` into audible playback.
 
 ## Main Parts
 
@@ -31,6 +13,7 @@ Owns:
 - one playback step at a time
 - next-cursor calculation
 - per-step wait calculation
+- grouping same-step sounds into one playback moment
 
 ### `ScaleAutoPlayer`
 
@@ -38,52 +21,47 @@ Owns:
 
 - repeated stepping over time
 - BPM-based scheduling
-- stop/cancel behavior
-
-This may have short-lived internal runtime state, but it should not become the owner of screen playback state.
+- stop and cancel behavior
 
 ### `PianoSoundPlayer`
 
 Owns:
 
 - actual piano sample playback
-- note/chord playback output
+- playing one or more notes for the current playback moment
 
 ## Input Model
 
-The player consumes the saved playback model:
+The player consumes:
 
 - `Scale`
 - `ScaleSet`
 - `ScaleSound`
 - `PlaybackTiming`
 
+## Playback Rules
+
+- each sound has a stable absolute `step`
+- sounds at the same `step` are played together
+- wait duration is derived from the difference between adjacent steps
+- BPM scales playback speed globally
+
+## Cursor Model
+
+The player uses a playback cursor, but that cursor is runtime state, not persisted domain state.
+
 ## What The Player Must Not Know
 
-- whether the scale was manually authored or analyzed from audio
-- raw note-detection evidence
+- analyzer internals
 - Room entities
-- screen-level navigation state
+- editor UI state
+- review state such as confirmed vs suggested
 
-## Current Code Mapping
+## Current Direction
 
-```mermaid
-flowchart TD
-    PlayerDir["player/"] --> PianoSoundPlayer["PianoSoundPlayer.kt"]
-    PlayerDir --> ScaleAutoPlayer["ScaleAutoPlayer.kt"]
-    PlayerDir --> ScaleStepper2["ScaleStepper.kt"]
-```
+Future player work should focus on:
 
-## Current Behavior
-
-```mermaid
-flowchart LR
-    ScaleBehavior["Scale"] --> PlayStep["Play / Step"] --> Direction["Forward or Backward"] --> Audible["audible practice playback"]
-```
-
-## Future Extension Points
-
-- playback preview in draft review
-- richer break timing support
-- transpose at playback time
-- metronome or count-in cue
+- play from selected set
+- later, possibly play from selected sound
+- local preview during review flows
+- playback polish for dense same-step note groups

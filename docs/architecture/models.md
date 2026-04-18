@@ -1,41 +1,12 @@
 # Domain Models
 
-## Central Models
+## Purpose
 
-The core domain models for Skales live in `app/src/main/java/com/example/skales/model/`.
+These are the saved playback models in `app/src/main/java/com/example/skales/model/`.
 
-These models represent the final saved playback-ready scale structure.
+They are the source of truth for editor, player, infer, and storage.
 
-## Scale Model
-
-```kotlin
-data class Scale(
-    val id: String,
-    val name: String,
-    val sets: List<ScaleSet>,
-    val timing: PlaybackTiming,
-)
-```
-
-A `Scale` is the final saved playback object. It represents one complete exercise.
-
-## ScaleSet Model
-
-```kotlin
-data class ScaleSet(
-    val sounds: List<ScaleSound>,
-)
-```
-
-A `ScaleSet` is one grouped exercise unit within a scale.
-
-Important current rule:
-
-- sets still exist as real domain grouping
-- sets no longer carry their own timing break field
-- the first sound of a set defines where that set visibly begins on the shared editor timeline
-
-## ScaleSound Model
+## Current Model
 
 ```kotlin
 enum class ScaleSoundKind {
@@ -45,120 +16,98 @@ enum class ScaleSoundKind {
 
 data class ScaleSound(
     val id: String = UUID.randomUUID().toString(),
-    val notes: List<Int>,
+    val midi: Int,
     val kind: ScaleSoundKind,
-    val breakAfterBeats: Float? = null,
+    val step: Int = 0,
 )
-```
 
-A `ScaleSound` is one playback event.
+data class ScaleSet(
+    val sounds: List<ScaleSound>,
+)
 
-Important details:
-
-- a sound can contain one note or multiple notes played together
-- `kind` distinguishes cue sounds from normal note sounds
-- cues are still regular sounds, not a second hidden structure
-- `breakAfterBeats` controls the spacing after this sound
-- for v1, all sounds are treated as having the same played duration; only the spacing to the next sound is modeled
-
-This model is intentionally event-based first.
-
-- `ScaleSound` represents one shared start time
-- all notes inside that sound are played together as one event
-- future editor work may introduce note-level identity inside a sound, but that does not change the event-level meaning of `ScaleSound`
-
-## PlaybackTiming Model
-
-```kotlin
 data class PlaybackTiming(
     val defaultBpm: Int,
 )
+
+data class Scale(
+    val id: String,
+    val name: String,
+    val sets: List<ScaleSet>,
+    val timing: PlaybackTiming,
+)
 ```
 
-The only global timing value is BPM. All spacing is beat-based.
+## Meaning
 
-## Mental Model
+### `Scale`
 
-Think of a scale as a sequence of sound events with beat-based spacing:
+- one saved exercise
+- owns name, sets, and default playback tempo
 
-```text
-C --- N ---- N ---- CueChord -- N
-```
+### `ScaleSet`
 
-- `C` = cue sound
-- `N` = normal note sound
-- `CueChord` = one cue event containing multiple notes
-- `-` = beat-space after that sound
+- one structural group inside the exercise
+- sets remain real domain structure even though the editor shows one shared timeline
+- a set boundary is derived from the first sound in that set
 
-Sets group these sounds, but the editor now renders them on one shared timeline:
+### `ScaleSound`
 
-```text
-Set 1: C --- N ---- N
-Set 2: CueChord -- N -- N
-```
+- one note event
+- `midi` is the pitch
+- `step` is the absolute timeline position
+- `kind` distinguishes cue sounds from normal note sounds
 
-There is no extra set break field anymore. Cross-set spacing is still represented by the previous sound's `breakAfterBeats`.
+Important rule:
 
-## Spacing Rules
+- simultaneity is represented by multiple `ScaleSound`s at the same `step`
 
-Only one spacing rule matters now:
+### `PlaybackTiming`
 
-- per-sound spacing: `ScaleSound.breakAfterBeats`
+- global playback tempo configuration
 
-Default break when omitted:
+## Timing Model
 
-- note sound: `1f` beat
-- cue sound: `1f` beat
-
-Current product decision:
-
-- cue sounds do not get a hidden longer default pause
-- if a cue should have more space after it, that should be expressed explicitly in the editor/model
-
-## Multi-Note Sound Rule
-
-`ScaleSound.notes` is a real grouped event, not just a label convenience.
+The saved model is absolute-step based.
 
 That means:
 
-- a cue can contain multiple notes played together
-- a normal note sound can also contain multiple notes if the exercise requires a grouped event
-- the editor should render all pitches in that sound
-- dragging the sound should transpose all of its pitches together
-- grouped sounds should keep one shared start time and one shared `breakAfterBeats`
+- each sound stores its own `step`
+- spacing is derived from differences between adjacent steps
+- snap is an editing aid, not saved timing truth
+- BPM scales playback speed over the stored steps
 
-This grouped-event model is important for future inferred cue chords and other inferred simultaneous sounds.
+## Internal Resolution
 
-## Note Representation
+Current internal resolution:
 
-Notes are represented as MIDI note numbers (0-127).
+- `1 step = 0.25 beats`
+- `4 steps = 1 beat`
 
-Examples:
+This is independent from the current snap setting in the editor.
 
-- Middle C (C4) = 60
-- A4 (440 Hz) = 69
+## Simultaneity Rule
 
-## Important Constraints
+The canonical representation is:
 
-- domain models do not contain persistence metadata (`createdAt`, `updatedAt`)
-- persistence metadata lives in `ScaleEntity` (see `storage.md`)
-- the domain model is playback-focused: it models what gets played, in what grouping, and with what spacing
-- do not reintroduce set-level break timing
-- do not add per-sound duration or velocity to v1 unless product scope changes intentionally
+- one sound = one note
+- same-step sounds = notes that play together
 
-## Current Model Direction
+This keeps the model aligned with current editor behavior.
 
-The current model should be understood as:
+## Non-Goals In The Model
 
-- grouping is set-based
-- timing is per-sound
-- editing is shared-timeline
+The core model does not currently represent:
 
-That combination is deliberate.
+- per-note duration
+- velocity
+- articulation
+- grouped chord objects inside one `ScaleSound`
 
-## Related Documentation
+If grouped chord objects are added later, they should be introduced explicitly with clear interaction semantics rather than implied by the current shape.
 
-- `player.md` - how these models are consumed for playback
-- `editor.md` - how these models are authored and edited
-- `infer.md` - how partial scales are completed
-- `storage.md` - how these models are persisted
+## Constraints
+
+- domain models do not contain Room metadata such as `createdAt`
+- persistence metadata belongs in storage entities
+- do not reintroduce relative-gap timing into the saved model
+- do not add DAW-style timing concepts unless product scope changes intentionally

@@ -4,217 +4,81 @@
 
 Skales is an Android app for creating, inferring, saving, and replaying custom singing-practice scales.
 
-The product vision is recording-first scale creation: the user can sing or play a scale, the app recognizes it, the result is reviewed and corrected if needed, and the saved scale is used for repeated practice playback.
+The current product focus is editor-first creation with inference support and repeatable playback.
 
-The initial product focus is narrower: make scale creation easy in the editor and use `infer` to fill in missing sets, so the core creation workflow is solid before recording analysis is added.
-
-## Product Vision
-
-The intended end-state of Skales is:
+## Core Flow
 
 ```text
-record or import audio -> analyze -> infer draft -> correct -> save -> play
+enter notes -> adjust timing on the grid -> infer missing sets -> review -> save -> play
 ```
 
-That is the main product story.
+## Current Focus
 
-The reason this matters:
-
-- recording is the most magical and differentiated entry point
-- users often already know a scale by ear or from practice, but do not want to manually enter every set
-- playback is the payoff, but easy creation is what makes the library worth using
-
-## Core Promise
-
-```mermaid
-flowchart LR
-    Recording["record or import audio"] --> Analyze["analyze"] --> InferA["infer draft"] --> Saved["saved Scale"]
-    Manual["manual input"] --> Saved
-    Seeded["partial manual seed"] --> InferB["infer missing sets"] --> Saved
-    Saved --> Playback["playback"]
-```
-
-The product is **recording-led in vision, playback-focused in value, and correction-friendly in execution**.
-
-## Current Build Focus
-
-Current focus:
-
-- editor-first scale authoring
-- partial-set inference and reinference
-- shared-timeline piano-roll editing with visible note spacing
-- clear correction flow before save
-- smooth playback of saved scales
-
-Why this comes first:
-
-- recording analysis is harder than editor and inference work
-- a strong analyzer still depends on a good correction target
-- editor + infer already solves a real user problem on its own
-
-Near-term ideal flow:
-
-```text
-enter notes in the editor -> adjust spacing in the piano roll -> infer the rest -> correct -> save -> play
-```
-
-## Deferred For Now
-
-These belong to later phases rather than the initial delivery scope:
-
-- recording analysis as the primary user-facing creation path
-- microphone capture workflow
-- polished import-to-review correction flow
+- shared-timeline piano-roll editing
+- absolute-step timing
+- partial-set inference
+- save and playback of authored scales
 
 ## Core User Jobs
 
 The app should help the user:
 
 - create a scale manually
-- place and drag notes on a piano-roll grid with clear spacing
-- group sounds into sets while still seeing the whole exercise on one shared timeline
-- edit grouped cue sounds as first-class events
-- seed one or more sets and infer the rest
-- inspect and correct a draft before saving
-- replay scales repeatedly for practice
-- adjust playback pace and direction
-- later, derive a scale from audio
-
-## Main Flows
-
-### Flow A: Recording Import (Vision)
-
-```mermaid
-flowchart LR
-    LibraryA["Library"] --> ImportA["Import audio"]
-    ImportA --> AnalyzeA["Analyze audio"]
-    AnalyzeA --> EvidenceA["Evidence"]
-    EvidenceA --> InferA["Infer draft"]
-    InferA --> ReviewA["Review + correct"]
-    ReviewA -. reinfer with locked sets .-> InferA
-    ReviewA --> SaveA["Save"]
-    SaveA --> PlayerA["Player"]
-```
-
-This is the intended flagship flow for the product.
-
-### Flow B: Seed And Infer (Current Priority)
-
-```mermaid
-flowchart LR
-    LibraryB["Library"] --> EditorB["Editor"]
-    EditorB --> SeedB["Enter set 1 or 2"]
-    SeedB --> InferB["Infer draft"]
-    InferB --> ReviewB["Review + correct"]
-    ReviewB -. reinfer with locked sets .-> InferB
-    ReviewB --> SaveB["Save"]
-    SaveB --> PlayerB["Player"]
-```
-
-This is the current priority path. The user seeds one or more known sets, the app infers the rest, and the user tightens the result until it is ready to save.
-
-In practice, that tightening now happens in a shared piano-roll timeline with configurable snap sizes, visible set boundaries, and a selected set that owns editing actions.
-
-### Flow C: Manual Creation (Direct)
-
-```mermaid
-flowchart LR
-    LibraryC["Library"] --> EditorC["Editor"]
-    EditorC -. optional infer .-> InferC["Infer draft"]
-    InferC --> EditorC
-    EditorC --> SaveC["Save"]
-    SaveC --> PlayerC["Player"]
-```
-
-For users who want full control or want to bypass inference and author everything manually.
-
-### Flow D: Practice Existing Scale
-
-```mermaid
-flowchart LR
-    LibraryD["Library"] --> PlayerD["Player"]
-```
-
-### Flow E: Correction
-
-```mermaid
-flowchart LR
-    PlayerE1["Player"] --> Edit["Edit"] --> EditorE["Editor"]
-    EditorE -. reinfer if useful .-> InferE["Infer draft"]
-    InferE --> EditorE
-    EditorE --> SaveE["Save"]
-    SaveE --> PlayerE2["Player"]
-```
-
-When a saved scale needs adjustment.
+- place and drag notes on a piano-roll grid
+- group notes into sets while still seeing the full exercise on one timeline
+- infer missing sets from partial work
+- review and correct results before saving
+- replay saved scales for practice
 
 ## Stable Product Decisions
 
-These should remain stable unless there is a strong reason to change them:
-
-- `Scale` is the final saved playback object
-- `ScaleSet` is one repeatable exercise unit. A `Scale` consists of many `ScaleSet`s. 
-- `ScaleSet` remains grouping structure, but timing is represented only through per-sound spacing
-- users should review inferred results before saving when confidence is uncertain
-- audio analysis should produce evidence, not just a black-box answer
-- scale completion should be a separate inference step, not hidden inside audio analysis
-- the component name should stay `infer` everywhere in the docs and architecture
-- manual correction should reuse the editor rather than inventing a second editing model
-- the MVP scope can be narrower than the full product vision
+- `Scale` is the saved playback object
+- `ScaleSet` remains real grouping structure
+- `ScaleSound` is one note event
+- simultaneity is represented by same-step sounds
+- timing is stored as absolute `step` positions
+- UI snap is an editing aid, not saved timing truth
+- manual correction happens in the editor, not in a separate model
 
 ## Current State
 
 Implemented now:
 
 - scale library screen
-- manual editor with shared-timeline piano roll
-- floating playback/grid/set overlays in editor
-- attached piano keyboard under the editor grid
+- shared-timeline editor
+- floating playback, grid, and set controls in the editor
+- attached piano keyboard under the grid
 - scale player
 - local persistence with Room
-- deterministic analysis pipeline for note evidence extraction
-- deterministic `infer` support for draft generation from evidence or partial sets
+- deterministic analyzer pipeline for note evidence extraction
+- deterministic infer support for draft generation from evidence or partial sets
 
-MVP gaps:
+Current gaps:
 
-- locked-set reinference flow in the editor
-- clearer inferred-vs-confirmed set state inside the editor
-- richer inference flow on top of the new shared timeline editor
-- playback preview inside the review flow
-- polish around shared-timeline set editing and grouped cue rendering
-
-Current inference direction:
-
-- editor inference should start with small reviewable suggestions rather than bulk generation by default
-- confirmed user-authored sets should act as anchors inside a larger possible exercise
-- later range fill may generate sets before or after the currently confirmed region
-
-Later phases:
-
-- microphone recording flow
-- opening analyzed drafts directly in the editor for correction
+- confirmed vs suggested set state in the editor
+- richer editor-driven inference flow
+- localized playback review during correction
+- polish for same-step note rendering and dense editing cases
 
 ## In Scope
 
-- monophonic scale-like exercises first
 - editor-first scale authoring
 - partial-set inference and reinference
 - repeatable practice playback
-- the recording-led product direction as a design constraint
+- recording-led product direction as a future constraint
 
 ## Out Of Scope For Now
 
-- recording analysis and import-driven creation in the MVP
-- microphone capture workflow
+- microphone capture workflow in the MVP
 - cloud sync
 - collaboration
-- advanced sheet-music style editing
-- opaque AI-only inference with no structured evidence
+- advanced DAW-style editing
 
-## Design Rule
+## Reading Order
 
-When a new feature is proposed, keep these three questions explicit:
-
-1. what user job does it support?
-2. which architecture component owns it?
-3. what screen should expose it?
+1. `architecture/overview.md`
+2. `architecture/models.md`
+3. `architecture/editor.md`
+4. `architecture/infer.md`
+5. `architecture/player.md`
+6. `roadmap.md`

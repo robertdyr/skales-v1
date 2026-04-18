@@ -6,46 +6,70 @@ import com.example.skales.model.ScaleSoundKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScaleEditorOpsTest {
     @Test
-    fun addChordPreCue_prependsCueFromDistinctNotes() {
+    fun addSoundToSelectedSetAtColumn_storesAbsoluteStep() {
+        val updated = ScaleEditorOps.addSoundToSelectedSetAtColumn(
+            sets = listOf(ScaleSet(sounds = emptyList())),
+            selectedSetIndex = 0,
+            midi = 60,
+            column = 3,
+            kind = ScaleSoundKind.Note,
+            stepBeats = SetGridOps.FineStepBeats,
+        )
+
+        assertEquals(3, updated.first().sounds.single().step)
+    }
+
+    @Test
+    fun moveSetBoundary_shiftsTargetAndLaterSetsTogether() {
         val sets = listOf(
-            ScaleSet(
-                sounds = listOf(
-                    ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note),
-                    ScaleSound(notes = listOf(64), kind = ScaleSoundKind.Note),
-                    ScaleSound(notes = listOf(67), kind = ScaleSoundKind.Note),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 0))),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 62, kind = ScaleSoundKind.Note, step = 4))),
+            ScaleSet(sounds = listOf(ScaleSound(midi = 64, kind = ScaleSoundKind.Note, step = 8))),
+        )
+
+        val updated = ScaleEditorOps.moveSetBoundary(
+            sets = sets,
+            targetSetIndex = 1,
+            column = 6,
+            stepBeats = SetGridOps.FineStepBeats,
+        )
+
+        assertEquals(6, updated[1].sounds.single().step)
+        assertEquals(10, updated[2].sounds.single().step)
+    }
+
+    @Test
+    fun toGrid_usesFirstSoundAsLaterSetBoundary() {
+        val grid = SetGridOps.toGrid(
+            sets = listOf(
+                ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 4))),
+                ScaleSet(
+                    sounds = listOf(
+                        ScaleSound(midi = 62, kind = ScaleSoundKind.Note, step = 8),
+                        ScaleSound(midi = 64, kind = ScaleSoundKind.Note, step = 10),
+                    ),
                 ),
             ),
         )
 
-        val updated = ScaleEditorOps.addChordPreCueToSelectedSet(sets, 0)
-
-        assertEquals(ScaleSoundKind.Cue, updated.first().sounds.first().kind)
-        assertEquals(listOf(60, 64, 67), updated.first().sounds.first().notes)
+        assertEquals(listOf(0, 8), grid.setStartColumns)
+        assertTrue(grid.notes.filter { it.setIndex == 1 }.all { it.column >= grid.setStartColumns[1] })
     }
 
     @Test
-    fun deleteSelectedSet_keepsAtLeastOneEmptySet() {
-        val (updatedSets, selectedIndex) = ScaleEditorOps.deleteSelectedSet(ScaleEditorOps.defaultSets(), 0)
-
-        assertEquals(1, updatedSets.size)
-        assertEquals(emptyList<Int>(), updatedSets.single().sounds.flatMap { it.notes })
-        assertEquals(0, selectedIndex)
-    }
-
-    @Test
-    fun buildSavableScale_filtersEmptySoundsAndTrimsName() {
+    fun buildSavableScale_trimsNameAndPreservesMidi() {
         val scale = ScaleEditorOps.buildSavableScale(
             scaleId = "",
             name = "  Test Scale  ",
             sets = listOf(
                 ScaleSet(
                     sounds = listOf(
-                        ScaleSound(notes = emptyList(), kind = ScaleSoundKind.Note),
-                        ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note),
+                        ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 4),
                     ),
                 ),
             ),
@@ -54,7 +78,8 @@ class ScaleEditorOpsTest {
 
         assertNotNull(scale)
         assertEquals("Test Scale", scale?.name)
-        assertEquals(listOf(60), scale?.sets?.single()?.sounds?.flatMap { it.notes })
+        assertEquals(listOf(60), scale?.sets?.single()?.sounds?.map { it.midi })
+        assertEquals(4, scale?.sets?.single()?.sounds?.single()?.step)
     }
 
     @Test
@@ -62,7 +87,7 @@ class ScaleEditorOpsTest {
         val scale = ScaleEditorOps.buildSavableScale(
             scaleId = null,
             name = "   ",
-            sets = listOf(ScaleSet(sounds = listOf(ScaleSound(notes = listOf(60), kind = ScaleSoundKind.Note)))),
+            sets = listOf(ScaleSet(sounds = listOf(ScaleSound(midi = 60, kind = ScaleSoundKind.Note, step = 0)))),
             bpm = 92,
         )
 

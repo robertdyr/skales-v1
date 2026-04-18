@@ -175,7 +175,7 @@ private fun ScaleListItem(
     val soundCount = scale.sets.sumOf { it.sounds.size }
     val previewNotes = scale.sets
         .flatMap { set -> set.sounds }
-        .flatMap { sound -> sound.notes }
+        .map { sound -> sound.midi }
         .take(8)
         .joinToString(separator = "  ") { midi ->
             val note = Note.fromMidi(midi)

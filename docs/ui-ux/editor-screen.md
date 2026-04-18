@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The editor screen is the main surface for building and correcting a scale.
+The editor is the main surface for creating and correcting a scale.
 
-The piano roll and keyboard are the primary UI. Playback, grid controls, and set controls support that surface and should stay secondary.
+The piano roll and keyboard are the primary UI. Playback, grid controls, and set controls support that surface.
 
 ## Layout
 
@@ -34,65 +34,47 @@ The piano roll and keyboard are the primary UI. Playback, grid controls, and set
 ## UX Priorities
 
 1. keep the piano roll and keyboard dominant
-2. keep set structure visible without splitting editing into separate panes
-3. make timing edits readable and direct
-4. keep cues and grouped sounds editable as real events
+2. keep set structure visible
+3. make timing edits direct and readable
+4. keep same-step simultaneous notes understandable
 5. avoid DAW-style complexity
 
 ## Interaction Model
 
-The screen shows one shared timeline for the entire scale.
-
-- all sets are visible on the same grid
-- the selected set is highlighted and editable
-- other sets stay visible as context
+- all sets are visible on one grid
+- one set is selected for editing ownership
 - tapping a sound in another set selects that set
-- keyboard input appends to the selected set
+- keyboard input adds sounds to the selected set
+
+## Timing Behavior
+
+- the saved model is absolute-step based
+- each sound stores its own `step`
+- changing snap does not rewrite saved positions
+- snap only affects placement and drag quantization
 
 ## Set Boundaries
-
-Set boundaries are visible grouping markers, not separate timing objects.
 
 - a set starts where its first sound starts
 - the separator line reflects that start
 - dragging the separator moves that set start explicitly
 - dragging the first sound of a later set also moves that set start
-- dragging later sounds in that set should not move the separator
-
-## Timing Behavior
-
-For v1, only one timing value is exposed:
-
-- `breakAfterBeats`
-
-This means:
-
-- the visible gap after a sound is owned by that sound
-- the gap across a set boundary is still owned by the earlier sound
-- moving a sound rewrites adjacent spacing based on the new shared timeline order
-
-Expected editing behavior:
-
-- dragging a later sound within a set changes spacing inside that set
-- dragging the first sound of a later set changes both the set start and the previous cross-set gap
-- dragging a separator changes the same boundary explicitly
-- changing grid snap affects placement and dragging only, not saved timing globally
+- dragging later sounds in that set does not move the separator
 
 ## Sound Rendering
 
 - note sound: square block
 - cue sound: circular block
-- grouped cue: multiple circles at one time position
-- multi-note sound: one event that moves together
-- vertical drag transposes the whole sound together
+- simultaneous notes: multiple independent items at one time position
+- vertical drag transposes the dragged sound only
 
 ## Controls
 
 ### Playback
 
-- playback lives in a floating overlay, not a dock
+- playback lives in a floating overlay
 - the main action is play and stop
-- playback should match the timing the user sees in the grid
+- playback should match the timing shown on the grid
 
 ### Grid
 
@@ -103,45 +85,18 @@ Expected editing behavior:
 ### Sets
 
 - the sets overlay selects the active set
-- it also exposes set-level actions such as add, delete, clear, and cue actions
+- it exposes set-level actions such as add, delete, and clear
 - sets remain real structure even though editing happens on one shared grid
 
 ## Non-Goals
 
-Do not add by default:
-
 - per-sound duration editing
 - velocity or articulation editing
-- full DAW-style resizing tools
-- hidden timing rules for cues
+- DAW-style resizing tools
 
-## Future Hooks
-
-Later reinference work will likely add:
+## Future Work
 
 - inferred vs confirmed set state
 - lock and unlock controls
-- small probe suggestions before bulk generation
-- range-based fill actions around confirmed anchors
-- better draft review support inside the editor
-
-## Inference Review Direction
-
-Inference review should stay inside the editor rather than opening a separate correction surface.
-
-The intended interaction is:
-
-- user authors one or more trusted sets
-- user asks for a small number of suggestions first
-- suggested sets appear as provisional on the same timeline
-- user accepts, rejects, or edits those suggestions
-- once the pattern looks right, user can request a larger range fill
-
-Important UX rules:
-
-- default inference should favor a small probe over a large bulk generation
-- larger fill actions should be explicit
-- suggested sets should remain visually distinct from confirmed sets
-- playback review should not always require starting from the beginning of the exercise
-
-Range-based inference may need to generate sets before the current confirmed region as well as after it, so the editor must treat confirmed sets as anchors inside a larger possible exercise rather than assuming they are always the beginning.
+- probe and fill-range inference entry points
+- better local playback review

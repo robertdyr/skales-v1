@@ -1,44 +1,19 @@
 # Docs Index
 
-```text
-docs/
-├── overview.md
-├── roadmap.md
-├── architecture/
-│   ├── overview.md
-│   ├── analyzer.md
-│   ├── infer.md
-│   ├── player.md
-│   ├── editor.md
-│   ├── storage.md
-│   └── app-shell.md
-├── ui-ux/
-│   ├── overview.md
-│   ├── library-screen.md
-│   ├── import-review-flow.md
-│   ├── editor-screen.md
-│   └── player-screen.md
-└── implementation/
-    └── notes.md
-```
-
-Use the docs like this:
+Start here:
 
 1. `overview.md`
 2. `architecture/overview.md`
-3. `architecture/*.md` for component/library contracts
-4. `ui-ux/*.md` for screen layout and interaction design
-5. `roadmap.md` for product and delivery sequencing
-6. `implementation/*.md` for concrete execution notes
+3. `architecture/models.md`
+4. `architecture/editor.md`
+5. `architecture/infer.md`
+6. `architecture/player.md`
+7. `roadmap.md`
 
-Reading rule:
+Use the docs like this:
 
-- if the question is "what should the app do?", start with `overview.md`
-- if the question is "what component owns this?", use `architecture/`
-- if the question is "what should this screen look like?", use `ui-ux/`
-- if the question is "what should we build next?", use `roadmap.md`
-
-Important reading note:
-
-- `analyzer` means audio -> evidence
-- `infer` means evidence or partial sets -> draft
+- `overview.md`: what the app currently is
+- `architecture/`: component ownership and contracts
+- `ui-ux/`: screen behavior and layout
+- `roadmap.md`: what to build next
+- `implementation/`: short implementation handoff notes

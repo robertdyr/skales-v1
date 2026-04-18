@@ -7,14 +7,15 @@ The editor is the authoring and correction surface for a `Scale`.
 It owns:
 
 - manual scale creation
-- correction of saved or inferred scales
-- projection of `Scale -> ScaleSet -> ScaleSound` into an editable piano-roll view
+- correction of inferred or saved scales
+- projection of `Scale -> ScaleSet -> ScaleSound` into the piano-roll UI
+- editing operations on sounds, boundaries, and selected sets
 
 It does not own:
 
 - inference logic
-- audio analysis
-- persistence details
+- persistence rules
+- playback scheduling
 
 ## Code Mapping
 
@@ -23,119 +24,76 @@ It does not own:
 - `app/viewmodel/ScaleEditorViewModel.kt`
 - `app/screens/ScaleEditorScreen.kt`
 - `app/components/SetPianoRollEditor.kt`
-- `app/components/PianoKeyboard.kt`
 
-Split of responsibility:
+## Core Editor View
 
-- `editor/` owns pure editing and timeline projection logic
-- `ScaleEditorViewModel` owns editor session state
-- `app/screens` and `app/components` own UI rendering and input
-
-## Model
-
-The saved model stays:
-
-```text
-Scale -> List<ScaleSet> -> List<ScaleSound>
-```
-
-The editor presents that model as one shared piano-roll timeline.
+The editor shows one shared piano-roll timeline for the entire scale.
 
 That means:
 
-- all sets are shown on one grid
+- all sets are visible on one grid
 - one set is selected for editing ownership
 - non-selected sets remain visible as context
-- set boundaries are derived from the first sound of each set
+- set boundaries are visible grouping markers
 
-The grid is a projection of the saved model, not a second persisted model.
+## Timing Rules
 
-## Timing
+The editor uses the saved absolute-step model directly.
 
-For v1, timing is intentionally simple.
+- sounds live at stable internal step positions
+- same-step sounds may overlap in time and play together
+- spacing is derived from step differences
+- changing snap does not rewrite saved positions
 
-- `ScaleSound.breakAfterBeats` is the only editable spacing value
-- all sounds are treated as having the same played length
-- there is no set-level break field
+## Set Boundary Rules
 
-The key rule is:
-
-- spacing between two adjacent sounds is owned by the earlier sound
-
-That includes spacing across a set boundary.
-
-So:
-
-- the gap between the last sound of set A and the first sound of set B is stored on the last sound of set A
-- moving a set start later increases that previous break
-- moving a set start earlier decreases that previous break
-
-## Shared Timeline Rules
-
-- sets remain real grouping structure
-- the editor behaves like one timeline with visible set boundaries
-- the boundary of a set is the start time of that set's first sound
-- cues and grouped sounds remain first-class events
-
-When the user edits the grid, timing is rebuilt from the resulting timeline order and then written back into the owning sets.
-
-## Review State
-
-The saved domain model remains a plain ordered list of `ScaleSet`s.
-
-The editor may track additional per-set review metadata without changing that saved shape.
-
-Examples:
-
-- confirmed set
-- suggested set
-- later, locked set
-
-Important rule:
-
-- suggested and confirmed sets should still appear in one working sequence on the same timeline
-- inference should not open a second disconnected draft editor for normal correction work
-- direct user edits to a suggested set should promote it to confirmed
-
-Confirmed sets should be treated as trusted anchors during inference and reinference.
+- the boundary of a set is the first sound step in that set
+- dragging the separator moves that boundary explicitly
+- dragging the first sound of a later set also moves that boundary
+- dragging later sounds within a set does not move the set boundary
 
 ## Editing Rules
 
 - only the selected set is directly editable
 - tapping a sound in another set switches selection to that set
-- dragging a sound usually changes only that sound's position and local spacing
-- dragging the first sound of a later set changes that set's start because it defines the boundary
-- dragging a separator is the explicit control for moving a set boundary
+- dragging a sound moves that sound on the grid
+- same-step sounds remain independent sounds even when they play together
+- keyboard input adds a sound to the selected set
 
-Within a set, normal note drags should not move the boundary unless the dragged sound is the first sound of that set.
+## Same-Step Sounds
 
-## Rendering Rules
+Current semantics:
 
-- note sound: square block
-- cue sound: circular block
-- multi-note sound: one event with multiple visible pitches
-- grouped sounds transpose together when dragged vertically
+- each sound is independent
+- several sounds may share one `step`
+- playback groups those sounds into one playback moment
+- rendering should make same-step sounds readable without turning them into one object
+
+## Review State
+
+The saved model stays plain:
+
+- `Scale`
+- `ScaleSet`
+- `ScaleSound`
+
+Editor-specific review state such as confirmed or suggested should live outside the saved domain model.
 
 ## Non-Goals
 
-The editor should not become a DAW.
-
 Do not add by default:
 
-- per-sound duration editing
+- arbitrary duration editing
 - velocity editing
 - articulation tools
-- hidden cue-specific timing rules
 - a second saved timeline model
+- DAW-style resizing tools
 
-## Future Role
+## Current Direction
 
-The editor is still the expected correction surface for later reinference work.
+Future editor work should focus on:
 
-Likely additions later:
-
-- inferred vs confirmed set state
-- lock and unlock controls for sets
-- probe suggestions for a few next sets
-- larger range fill actions around confirmed anchors
-- better review handoff for inferred drafts
+- confirmed vs suggested set state
+- better local playback review
+- better readability for same-step notes
+- better ownership and boundary feedback

@@ -23,13 +23,8 @@ class Converters {
                                         JSONObject().apply {
                                             put("id", sound.id)
                                             put("kind", sound.kind.name)
-                                            put("breakAfterBeats", sound.breakAfterBeats?.toDouble() ?: JSONObject.NULL)
-                                            put(
-                                                "notes",
-                                                JSONArray().apply {
-                                                    sound.notes.forEach(::put)
-                                                },
-                                            )
+                                            put("step", sound.step)
+                                            put("midi", sound.midi)
                                         },
                                     )
                                 }
@@ -53,7 +48,6 @@ class Converters {
             ScaleSet(
                 sounds = List(soundsJson.length()) { soundIndex ->
                     val soundJson = soundsJson.getJSONObject(soundIndex)
-                    val notesJson = soundJson.getJSONArray("notes")
 
                     ScaleSound(
                         id = if (soundJson.has("id") && !soundJson.isNull("id")) {
@@ -61,17 +55,12 @@ class Converters {
                         } else {
                             UUID.randomUUID().toString()
                         },
-                        notes = List(notesJson.length(), notesJson::getInt),
+                        midi = soundJson.getInt("midi"),
                         kind = ScaleSoundKind.valueOf(soundJson.getString("kind")),
-                        breakAfterBeats = soundJson.nullableFloat("breakAfterBeats"),
+                        step = soundJson.optInt("step", 0),
                     )
                 },
             )
         }
     }
-}
-
-private fun JSONObject.nullableFloat(key: String): Float? {
-    if (isNull(key)) return null
-    return getDouble(key).toFloat()
 }
